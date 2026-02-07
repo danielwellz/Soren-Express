@@ -16,6 +16,8 @@ import { Payment } from './payment.entity';
 import { Shipment } from './shipment.entity';
 import { OrderStatus } from 'src/common/enums';
 import { Coupon } from './coupon.entity';
+import { OrderStatusHistory } from './order-status-history.entity';
+import { ReturnRequest } from './return-request.entity';
 
 @ObjectType()
 @Entity({ name: 'orders' })
@@ -57,7 +59,7 @@ export class Order {
   total: number;
 
   @Field(() => OrderStatus)
-  @Column({ type: 'enum', enum: OrderStatus, default: OrderStatus.PENDING })
+  @Column({ type: 'enum', enum: OrderStatus, default: OrderStatus.CREATED })
   status: OrderStatus;
 
   @Field()
@@ -88,6 +90,14 @@ export class Order {
   @OneToOne(() => Shipment, (shipment) => shipment.order)
   @JoinColumn()
   shipment?: Shipment;
+
+  @Field(() => [OrderStatusHistory], { nullable: true })
+  @OneToMany(() => OrderStatusHistory, (history) => history.order, { cascade: true })
+  statusHistory?: OrderStatusHistory[];
+
+  @Field(() => [ReturnRequest], { nullable: true })
+  @OneToMany(() => ReturnRequest, (request) => request.order)
+  returnRequests?: ReturnRequest[];
 
   @Field()
   @CreateDateColumn({ name: 'created_at' })

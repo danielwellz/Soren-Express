@@ -21,12 +21,16 @@ import { ReviewsResolver } from './reviews/reviews.resolver';
 import { ReviewsService } from './reviews/reviews.service';
 import { AdminService } from './admin/admin.service';
 import { AdminResolver } from './admin/admin.resolver';
+import { CustomerResolver } from './customer/customer.resolver';
+import { CustomerService } from './customer/customer.service';
+import { PaymentsController } from './payments/payments.controller';
 
 @Module({
   imports: [
     JwtModule.register({}),
     TypeOrmModule.forFeature([...ENTITIES]),
   ],
+  controllers: [PaymentsController],
   providers: [
     AnalyticsService,
     AuthResolver,
@@ -47,6 +51,8 @@ import { AdminResolver } from './admin/admin.resolver';
     ReviewsService,
     AdminService,
     AdminResolver,
+    CustomerService,
+    CustomerResolver,
   ],
   exports: [
     AuthService,
@@ -57,6 +63,7 @@ import { AdminResolver } from './admin/admin.resolver';
     ReviewsService,
     AdminService,
     AnalyticsService,
+    CustomerService,
   ],
 })
 export class StoreModule {}

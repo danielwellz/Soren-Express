@@ -7,6 +7,7 @@ describe('CheckoutService calculateTotals', () => {
     const shippingRulesRepository = { findOne: jest.fn() };
 
     const service = new CheckoutService(
+      {} as any,
       couponsRepository as any,
       taxRulesRepository as any,
       shippingRulesRepository as any,
@@ -15,6 +16,10 @@ describe('CheckoutService calculateTotals', () => {
       {} as any,
       {} as any,
       {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      { findOne: jest.fn(), create: jest.fn(), save: jest.fn() } as any,
       { getCartForUserOrSession: jest.fn(), clearCart: jest.fn() } as any,
       {
         calculateTotals: jest.fn().mockReturnValue({

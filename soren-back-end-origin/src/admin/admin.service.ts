@@ -1,23 +1,27 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { OrderStatus } from 'src/common/enums';
+import { describeDbQueryError } from 'src/config/runtime-env';
 import {
   Brand,
   Category,
   Coupon,
   Inventory,
   Order,
+  OrderStatusHistory,
   Product,
   ProductVariant,
   ShippingRule,
   TaxRule,
   User,
 } from 'src/entities';
-import { Repository } from 'typeorm';
+import { QueryFailedError, Repository } from 'typeorm';
+import { assertValidOrderTransition } from 'src/orders/order-state-machine';
 import {
   CreateBrandInput,
   CreateCategoryInput,
@@ -35,9 +39,10 @@ import {
   UpsertShippingRuleInput,
   UpsertTaxRuleInput,
 } from './admin.inputs';
-
 @Injectable()
 export class AdminService {
+  private readonly logger = new Logger(AdminService.name);
+
   constructor(
     @InjectRepository(Category)
     private readonly categoriesRepository: Repository<Category>,
@@ -55,14 +60,42 @@ export class AdminService {
     private readonly usersRepository: Repository<User>,
     @InjectRepository(Order)
     private readonly ordersRepository: Repository<Order>,
+    @InjectRepository(OrderStatusHistory)
+    private readonly orderStatusHistoryRepository: Repository<OrderStatusHistory>,
     @InjectRepository(TaxRule)
     private readonly taxRulesRepository: Repository<TaxRule>,
     @InjectRepository(ShippingRule)
     private readonly shippingRulesRepository: Repository<ShippingRule>,
   ) {}
 
+  private assertRequiredName(value: string, label: string): string {
+    const normalized = typeof value === 'string' ? value.trim() : '';
+    if (!normalized) {
+      throw new BadRequestException(`${label} is required`);
+    }
+    return normalized;
+  }
+
+  private logQueryFailure(context: string, error: unknown): void {
+    if (!(error instanceof QueryFailedError)) {
+      return;
+    }
+    this.logger.error(`[${context}] ${describeDbQueryError(error)}`);
+  }
+
   async createCategory(input: CreateCategoryInput): Promise<Category> {
-    return this.categoriesRepository.save(this.categoriesRepository.create(input));
+    const name = this.assertRequiredName(input.name, 'Category name');
+    try {
+      return this.categoriesRepository.save(
+        this.categoriesRepository.create({
+          ...input,
+          name,
+        }),
+      );
+    } catch (error) {
+      this.logQueryFailure('createCategory', error);
+      throw error;
+    }
   }
 
   async categories(): Promise<Category[]> {
@@ -74,9 +107,14 @@ export class AdminService {
     if (!category) {
       throw new NotFoundException('Category not found');
     }
-    category.name = input.name;
+    category.name = this.assertRequiredName(input.name, 'Category name');
     category.description = input.description;
-    return this.categoriesRepository.save(category);
+    try {
+      return this.categoriesRepository.save(category);
+    } catch (error) {
+      this.logQueryFailure('updateCategory', error);
+      throw error;
+    }
   }
 
   async deleteCategory(id: number): Promise<boolean> {
@@ -89,7 +127,18 @@ export class AdminService {
   }
 
   async createBrand(input: CreateBrandInput): Promise<Brand> {
-    return this.brandsRepository.save(this.brandsRepository.create(input));
+    const name = this.assertRequiredName(input.name, 'Brand name');
+    try {
+      return this.brandsRepository.save(
+        this.brandsRepository.create({
+          ...input,
+          name,
+        }),
+      );
+    } catch (error) {
+      this.logQueryFailure('createBrand', error);
+      throw error;
+    }
   }
 
   async brands(): Promise<Brand[]> {
@@ -101,9 +150,14 @@ export class AdminService {
     if (!brand) {
       throw new NotFoundException('Brand not found');
     }
-    brand.name = input.name;
+    brand.name = this.assertRequiredName(input.name, 'Brand name');
     brand.description = input.description;
-    return this.brandsRepository.save(brand);
+    try {
+      return this.brandsRepository.save(brand);
+    } catch (error) {
+      this.logQueryFailure('updateBrand', error);
+      throw error;
+    }
   }
 
   async deleteBrand(id: number): Promise<boolean> {
@@ -123,13 +177,21 @@ export class AdminService {
       throw new BadRequestException('Invalid category or brand');
     }
 
-    return this.productsRepository.save(
-      this.productsRepository.create({
-        ...input,
-        category,
-        brand,
-      }),
-    );
+    const name = this.assertRequiredName(input.name, 'Product name');
+
+    try {
+      return this.productsRepository.save(
+        this.productsRepository.create({
+          ...input,
+          name,
+          category,
+          brand,
+        }),
+      );
+    } catch (error) {
+      this.logQueryFailure('createProduct', error);
+      throw error;
+    }
   }
 
   async updateProduct(input: UpdateProductInput): Promise<Product> {
@@ -148,7 +210,7 @@ export class AdminService {
     }
 
     Object.assign(product, {
-      name: input.name,
+      name: this.assertRequiredName(input.name, 'Product name'),
       slug: input.slug,
       description: input.description,
       basePrice: input.basePrice,
@@ -160,7 +222,12 @@ export class AdminService {
       published: input.published,
     });
 
-    return this.productsRepository.save(product);
+    try {
+      return this.productsRepository.save(product);
+    } catch (error) {
+      this.logQueryFailure('updateProduct', error);
+      throw error;
+    }
   }
 
   async deleteProduct(id: number): Promise<boolean> {
@@ -316,11 +383,20 @@ export class AdminService {
       throw new NotFoundException('Order not found');
     }
 
+    assertValidOrderTransition(order.status, input.status);
     order.status = input.status;
     if (input.status === OrderStatus.FULFILLED && order.shipment) {
       order.shipment.status = 'DELIVERED' as any;
       order.shipment.deliveredAt = new Date();
     }
+
+    await this.orderStatusHistoryRepository.save(
+      this.orderStatusHistoryRepository.create({
+        order,
+        status: input.status,
+        note: 'Status updated from admin panel',
+      }),
+    );
 
     return this.ordersRepository.save(order);
   }

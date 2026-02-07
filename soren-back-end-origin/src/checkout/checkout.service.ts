@@ -1,17 +1,24 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { createHash, createHmac, timingSafeEqual } from 'crypto';
 import { AnalyticsService } from 'src/analytics/analytics.service';
 import { CartService } from 'src/cart/cart.service';
 import {
+  AddressBookEntry,
   Cart,
+  CheckoutProfile,
   Coupon,
+  IdempotencyRecord,
   Inventory,
   Order,
   OrderItem,
+  OrderStatusHistory,
   Payment,
   Shipment,
   ShippingRule,
@@ -24,25 +31,32 @@ import {
   PaymentStatus,
   ShipmentStatus,
 } from 'src/common/enums';
+import { assertValidOrderTransition } from 'src/orders/order-state-machine';
 import { Repository } from 'typeorm';
 import {
   ConfirmPaymentInput,
   CreateOrderInput,
   CreatePaymentIntentInput,
   CheckoutTotalsInput,
+  ShippingEstimateInput,
 } from './checkout.inputs';
 import {
   CheckoutPreview,
   CheckoutTotals,
   ConfirmPaymentPayload,
   PaymentIntentPayload,
+  ShippingEstimate,
 } from './checkout.types';
 import { PricingService } from './pricing.service';
 import { NotificationService } from 'src/notifications/notification.service';
 
 @Injectable()
 export class CheckoutService {
+  private readonly logger = new Logger(CheckoutService.name);
+
   constructor(
+    @InjectRepository(Cart)
+    private readonly cartsRepository: Repository<Cart>,
     @InjectRepository(Coupon)
     private readonly couponsRepository: Repository<Coupon>,
     @InjectRepository(TaxRule)
@@ -59,6 +73,14 @@ export class CheckoutService {
     private readonly shipmentsRepository: Repository<Shipment>,
     @InjectRepository(Inventory)
     private readonly inventoryRepository: Repository<Inventory>,
+    @InjectRepository(AddressBookEntry)
+    private readonly addressBookRepository: Repository<AddressBookEntry>,
+    @InjectRepository(CheckoutProfile)
+    private readonly checkoutProfileRepository: Repository<CheckoutProfile>,
+    @InjectRepository(OrderStatusHistory)
+    private readonly orderStatusHistoryRepository: Repository<OrderStatusHistory>,
+    @InjectRepository(IdempotencyRecord)
+    private readonly idempotencyRepository: Repository<IdempotencyRecord>,
     private readonly cartService: CartService,
     private readonly pricingService: PricingService,
     private readonly analyticsService: AnalyticsService,
@@ -71,195 +93,383 @@ export class CheckoutService {
       throw new BadRequestException('Cart is empty');
     }
 
-    const totals = await this.calculateTotals(cart, input.region, input.couponCode);
-
-    await this.analyticsService.trackEvent({
-      eventType: 'checkout_start',
-      user,
-      sessionId: input.sessionId,
-      metadata: { region: input.region, couponCode: input.couponCode },
-    });
+    const activeCouponCode = input.couponCode || cart.promoCode;
+    const totals = await this.calculateTotals(cart, input.region, activeCouponCode);
 
     return { cart, totals };
   }
 
-  async createOrder(input: CreateOrderInput, user: User): Promise<Order> {
-    const cart = await this.cartService.getCartForUserOrSession(user, input.sessionId);
+  async createOrder(input: CreateOrderInput, user: User, idempotencyKey?: string): Promise<Order> {
+    const correlationId = this.buildCorrelationId('create-order', idempotencyKey);
+    const scopeKey = this.resolveIdempotencyScope(user, input.sessionId);
 
-    if (!cart.items?.length) {
-      throw new BadRequestException('Cart is empty');
-    }
+    return this.runIdempotent<Order>(
+      'createOrder',
+      scopeKey,
+      idempotencyKey,
+      { userId: user.id, input },
+      async () => {
+        const cart = await this.cartService.getCartForUserOrSession(user, input.sessionId);
 
-    const totals = await this.calculateTotals(
-      cart,
-      input.shippingRegion,
-      input.couponCode,
+        if (!cart.items?.length) {
+          throw new BadRequestException('Cart is empty');
+        }
+
+        let shippingName = input.shippingName;
+        let shippingAddress = input.shippingAddress;
+        let shippingCity = input.shippingCity;
+        let shippingRegion = input.shippingRegion;
+        let shippingPostalCode = input.shippingPostalCode;
+
+        if (input.savedAddressId) {
+          const savedAddress = await this.addressBookRepository.findOne({
+            where: { id: input.savedAddressId, user },
+          });
+
+          if (!savedAddress) {
+            throw new NotFoundException('Saved address not found');
+          }
+
+          shippingName = savedAddress.fullName;
+          shippingAddress = savedAddress.line1;
+          shippingCity = savedAddress.city;
+          shippingRegion = savedAddress.region;
+          shippingPostalCode = savedAddress.postalCode;
+        }
+
+        const totals = await this.calculateTotals(
+          cart,
+          shippingRegion,
+          input.couponCode || cart.promoCode,
+        );
+
+        const coupon = totals.coupon;
+
+        const order = this.ordersRepository.create({
+          user,
+          coupon,
+          subtotal: totals.subtotal,
+          discount: totals.discount,
+          shipping: totals.shipping,
+          tax: totals.tax,
+          total: totals.total,
+          status: OrderStatus.CREATED,
+          shippingName,
+          shippingAddress,
+          shippingCity,
+          shippingRegion,
+          shippingPostalCode,
+        });
+
+        const savedOrder = await this.ordersRepository.save(order);
+        await this.recordOrderStatus(
+          savedOrder,
+          OrderStatus.CREATED,
+          'Order created',
+          correlationId,
+        );
+
+        for (const cartItem of cart.items) {
+          const orderItem = this.orderItemsRepository.create({
+            order: savedOrder,
+            variant: cartItem.variant,
+            productName: cartItem.variant.product.name,
+            variantLabel: `${cartItem.variant.color || 'Default'} / ${cartItem.variant.size || 'One Size'}`,
+            sku: cartItem.variant.sku,
+            quantity: cartItem.quantity,
+            unitPrice: cartItem.unitPrice,
+            lineTotal: Number(cartItem.unitPrice) * cartItem.quantity,
+          });
+          await this.orderItemsRepository.save(orderItem);
+        }
+
+        if (input.saveAddress) {
+          await this.saveOrUpdateAddress(user, {
+            fullName: shippingName,
+            line1: shippingAddress,
+            city: shippingCity,
+            region: shippingRegion,
+            postalCode: shippingPostalCode,
+          });
+        }
+
+        if (input.saveCheckoutProfile !== false) {
+          await this.upsertCheckoutProfile(user, {
+            shippingName,
+            shippingLine1: shippingAddress,
+            shippingCity,
+            shippingRegion,
+            shippingPostalCode,
+          });
+        }
+
+        cart.promoCode = null;
+        cart.active = false;
+        await this.cartsRepository.save(cart);
+        await this.cartService.clearCart(cart);
+
+        await this.analyticsService.trackEvent({
+          eventType: 'order_created',
+          user,
+          order: savedOrder,
+          metadata: { orderId: savedOrder.id, correlationId },
+        });
+
+        return this.ordersRepository.findOne(savedOrder.id, {
+          relations: [
+            'items',
+            'items.variant',
+            'items.variant.product',
+            'payment',
+            'shipment',
+            'statusHistory',
+          ],
+        });
+      },
     );
-
-    const coupon = totals.coupon;
-
-    const order = this.ordersRepository.create({
-      user,
-      coupon,
-      subtotal: totals.subtotal,
-      discount: totals.discount,
-      shipping: totals.shipping,
-      tax: totals.tax,
-      total: totals.total,
-      status: OrderStatus.PENDING,
-      shippingName: input.shippingName,
-      shippingAddress: input.shippingAddress,
-      shippingCity: input.shippingCity,
-      shippingRegion: input.shippingRegion,
-      shippingPostalCode: input.shippingPostalCode,
-    });
-
-    const savedOrder = await this.ordersRepository.save(order);
-
-    for (const cartItem of cart.items) {
-      const orderItem = this.orderItemsRepository.create({
-        order: savedOrder,
-        variant: cartItem.variant,
-        productName: cartItem.variant.product.name,
-        variantLabel: `${cartItem.variant.color || 'Default'} / ${cartItem.variant.size || 'One Size'}`,
-        sku: cartItem.variant.sku,
-        quantity: cartItem.quantity,
-        unitPrice: cartItem.unitPrice,
-        lineTotal: Number(cartItem.unitPrice) * cartItem.quantity,
-      });
-      await this.orderItemsRepository.save(orderItem);
-    }
-
-    cart.active = false;
-    await this.cartService.clearCart(cart);
-
-    await this.analyticsService.trackEvent({
-      eventType: 'order_created',
-      user,
-      order: savedOrder,
-      metadata: { orderId: savedOrder.id },
-    });
-
-    return this.ordersRepository.findOne(savedOrder.id, {
-      relations: ['items', 'items.variant', 'items.variant.product', 'payment', 'shipment'],
-    });
   }
 
   async createPaymentIntent(
     input: CreatePaymentIntentInput,
     user: User,
+    idempotencyKey?: string,
   ): Promise<PaymentIntentPayload> {
-    const order = await this.ordersRepository.findOne(input.orderId, {
-      relations: ['user', 'items', 'items.variant', 'items.variant.inventory'],
-    });
+    const correlationId = this.buildCorrelationId('create-payment-intent', idempotencyKey);
+    const scopeKey = this.resolveIdempotencyScope(user);
 
-    if (!order || order.user.id !== user.id) {
-      throw new NotFoundException('Order not found');
-    }
+    return this.runIdempotent<PaymentIntentPayload>(
+      'createPaymentIntent',
+      scopeKey,
+      idempotencyKey,
+      { userId: user.id, input },
+      async () => {
+        const order = await this.ordersRepository.findOne(input.orderId, {
+          relations: ['user', 'items', 'items.variant', 'items.variant.inventory'],
+        });
 
-    if (order.status !== OrderStatus.PENDING) {
-      throw new BadRequestException('Order is not payable');
-    }
+        if (!order || order.user.id !== user.id) {
+          throw new NotFoundException('Order not found');
+        }
 
-    const existing = await this.paymentsRepository.findOne({ where: { order } });
-    if (existing) {
-      return {
-        payment: existing,
-        clientSecret: `fake_secret_${existing.intentId}`,
-      };
-    }
+        if (
+          order.status !== OrderStatus.CREATED &&
+          order.status !== OrderStatus.PENDING_PAYMENT
+        ) {
+          throw new BadRequestException('Order is not payable');
+        }
 
-    const payment = await this.paymentsRepository.save(
-      this.paymentsRepository.create({
-        order,
-        provider: PaymentProvider.FAKEPAY,
-        status: PaymentStatus.REQUIRES_CONFIRMATION,
-        intentId: `pi_${Date.now()}_${Math.floor(Math.random() * 9999)}`,
-        amount: order.total,
-        currency: 'USD',
-      }),
+        const existing = await this.paymentsRepository.findOne({ where: { order } });
+        if (existing) {
+          if (order.status === OrderStatus.CREATED) {
+            await this.transitionOrderStatus(
+              order,
+              OrderStatus.PENDING_PAYMENT,
+              'Payment intent reused',
+              correlationId,
+            );
+          }
+
+          return {
+            payment: existing,
+            clientSecret: `fake_secret_${existing.intentId}`,
+          };
+        }
+
+        const payment = await this.paymentsRepository.save(
+          this.paymentsRepository.create({
+            order,
+            provider: PaymentProvider.FAKEPAY,
+            status: PaymentStatus.REQUIRES_CONFIRMATION,
+            intentId: `pi_${Date.now()}_${Math.floor(Math.random() * 9999)}`,
+            amount: order.total,
+            currency: 'USD',
+          }),
+        );
+
+        if (order.status === OrderStatus.CREATED) {
+          await this.transitionOrderStatus(
+            order,
+            OrderStatus.PENDING_PAYMENT,
+            'Payment intent created',
+            correlationId,
+          );
+        }
+
+        return {
+          payment,
+          clientSecret: `fake_secret_${payment.intentId}`,
+        };
+      },
     );
-
-    return {
-      payment,
-      clientSecret: `fake_secret_${payment.intentId}`,
-    };
   }
 
-  async confirmPayment(input: ConfirmPaymentInput, user: User): Promise<ConfirmPaymentPayload> {
-    const payment = await this.paymentsRepository.findOne({
-      where: { intentId: input.intentId },
-      relations: ['order', 'order.user', 'order.items', 'order.items.variant', 'order.items.variant.inventory'],
-    });
+  async confirmPayment(
+    input: ConfirmPaymentInput,
+    user: User,
+    idempotencyKey?: string,
+  ): Promise<ConfirmPaymentPayload> {
+    const correlationId = this.buildCorrelationId('confirm-payment', idempotencyKey);
+    const scopeKey = this.resolveIdempotencyScope(user);
 
-    if (!payment || payment.order.user.id !== user.id) {
-      throw new NotFoundException('Payment intent not found');
-    }
+    return this.runIdempotent<ConfirmPaymentPayload>(
+      'confirmPayment',
+      scopeKey,
+      idempotencyKey,
+      { userId: user.id, input },
+      async () => {
+        const payment = await this.paymentsRepository.findOne({
+          where: { intentId: input.intentId },
+          relations: [
+            'order',
+            'order.user',
+            'order.items',
+            'order.items.variant',
+            'order.items.variant.inventory',
+            'order.shipment',
+          ],
+        });
 
-    if (payment.status === PaymentStatus.SUCCEEDED) {
-      return {
-        payment,
-        order: payment.order,
-      };
-    }
+        if (!payment || payment.order.user.id !== user.id) {
+          throw new NotFoundException('Payment intent not found');
+        }
 
-    for (const item of payment.order.items) {
-      const inventory = await this.inventoryRepository.findOne({ where: { variant: item.variant } });
-      if (!inventory || inventory.quantity - inventory.reserved < item.quantity) {
-        throw new BadRequestException(`Insufficient inventory for SKU ${item.sku}`);
-      }
-    }
+        if (
+          payment.status !== PaymentStatus.REQUIRES_CONFIRMATION &&
+          payment.status !== PaymentStatus.SUCCEEDED
+        ) {
+          throw new BadRequestException('Payment is not in confirmable state');
+        }
 
-    for (const item of payment.order.items) {
-      const inventory = await this.inventoryRepository.findOne({ where: { variant: item.variant } });
-      inventory.quantity -= item.quantity;
-      await this.inventoryRepository.save(inventory);
-    }
+        if (
+          payment.order.status !== OrderStatus.PENDING_PAYMENT &&
+          payment.order.status !== OrderStatus.PAID
+        ) {
+          throw new BadRequestException('Order is not in a confirmable payment state');
+        }
 
-    payment.status = PaymentStatus.SUCCEEDED;
-    payment.last4 = input.cardLast4;
-    await this.paymentsRepository.save(payment);
+        if (payment.status === PaymentStatus.SUCCEEDED) {
+          return {
+            payment,
+            order: payment.order,
+          };
+        }
 
-    payment.order.status = OrderStatus.PAID;
-    await this.ordersRepository.save(payment.order);
+        for (const item of payment.order.items) {
+          const inventory = await this.inventoryRepository.findOne({
+            where: { variant: item.variant },
+          });
+          if (!inventory || inventory.quantity - inventory.reserved < item.quantity) {
+            throw new BadRequestException(`Insufficient inventory for SKU ${item.sku}`);
+          }
+        }
 
-    const shipment = await this.shipmentsRepository.save(
-      this.shipmentsRepository.create({
-        order: payment.order,
-        status: ShipmentStatus.PENDING,
-      }),
+        for (const item of payment.order.items) {
+          const inventory = await this.inventoryRepository.findOne({
+            where: { variant: item.variant },
+          });
+          inventory.quantity -= item.quantity;
+          await this.inventoryRepository.save(inventory);
+        }
+
+        payment.status = PaymentStatus.SUCCEEDED;
+        payment.last4 = input.cardLast4;
+        await this.paymentsRepository.save(payment);
+
+        await this.transitionOrderStatus(
+          payment.order,
+          OrderStatus.PAID,
+          'Payment confirmed',
+          correlationId,
+        );
+
+        const shipment =
+          payment.order.shipment ||
+          (await this.shipmentsRepository.save(
+            this.shipmentsRepository.create({
+              order: payment.order,
+              status: ShipmentStatus.PENDING,
+            }),
+          ));
+
+        await this.analyticsService.trackEvent({
+          eventType: 'purchase',
+          user,
+          order: payment.order,
+          metadata: { paymentId: payment.id, total: payment.order.total, correlationId },
+        });
+
+        await this.notificationService.sendEmail(
+          user.email,
+          `Order #${payment.order.id} confirmed`,
+          'Your payment was confirmed with FakePay. We will start fulfillment shortly.',
+        );
+
+        if (user.phone) {
+          await this.notificationService.sendSms(
+            user.phone,
+            `Order #${payment.order.id} paid successfully.`,
+          );
+        }
+
+        await this.upsertCheckoutProfile(user, {
+          shippingName: payment.order.shippingName,
+          shippingLine1: payment.order.shippingAddress,
+          shippingCity: payment.order.shippingCity,
+          shippingRegion: payment.order.shippingRegion,
+          shippingPostalCode: payment.order.shippingPostalCode,
+          cardholderName: input.cardholderName,
+          cardLast4: input.cardLast4,
+          cardExpiry: input.cardExpiry,
+        });
+
+        const order = await this.ordersRepository.findOne(payment.order.id, {
+          relations: [
+            'items',
+            'items.variant',
+            'payment',
+            'shipment',
+            'coupon',
+            'user',
+            'statusHistory',
+          ],
+        });
+
+        return {
+          payment,
+          order: {
+            ...order,
+            shipment,
+          },
+        };
+      },
     );
+  }
 
-    await this.analyticsService.trackEvent({
-      eventType: 'purchase',
-      user,
-      order: payment.order,
-      metadata: { paymentId: payment.id, total: payment.order.total },
-    });
+  async getShippingEstimate(input: ShippingEstimateInput): Promise<ShippingEstimate> {
+    const rule =
+      (await this.shippingRulesRepository.findOne({
+        where: { region: input.region, active: true },
+      })) ||
+      (await this.shippingRulesRepository.findOne({
+        where: { region: 'US-DEFAULT', active: true },
+      }));
 
-    await this.notificationService.sendEmail(
-      user.email,
-      `Order #${payment.order.id} confirmed`,
-      'Your payment was confirmed with FakePay. We will start fulfillment shortly.',
-    );
-
-    if (user.phone) {
-      await this.notificationService.sendSms(
-        user.phone,
-        `Order #${payment.order.id} paid successfully.`,
-      );
-    }
-
-    const order = await this.ordersRepository.findOne(payment.order.id, {
-      relations: ['items', 'items.variant', 'payment', 'shipment', 'coupon', 'user'],
-    });
+    const flatRate = Number(rule?.flatRate || 0);
+    const freeShippingOver = Number(rule?.freeShippingOver || 0);
+    const subtotal = Number(input.subtotal || 0);
+    const eligibleForFreeShipping = subtotal >= freeShippingOver;
+    const remainingForFreeShipping = eligibleForFreeShipping
+      ? 0
+      : Number(Math.max(freeShippingOver - subtotal, 0).toFixed(2));
 
     return {
-      payment,
-      order: {
-        ...order,
-        shipment,
-      },
+      region: input.region,
+      flatRate,
+      freeShippingOver,
+      remainingForFreeShipping,
+      eligibleForFreeShipping,
+      estimatedMinDays: 2,
+      estimatedMaxDays: 5,
     };
   }
 
@@ -293,5 +503,236 @@ export class CheckoutService {
       shippingRule,
       taxRule,
     });
+  }
+
+  async processPaymentWebhook(
+    payload: {
+      id: string;
+      type: string;
+      intentId: string;
+      metadata?: Record<string, unknown>;
+    },
+    signature?: string,
+  ): Promise<{ received: boolean; duplicate?: boolean; ignored?: boolean; orderId?: number }> {
+    this.assertValidWebhookSignature(payload, signature);
+    const correlationId = this.buildCorrelationId(`webhook-${payload.id}`, payload.id);
+
+    return this.runIdempotent<{ received: boolean; duplicate?: boolean; ignored?: boolean; orderId?: number }>(
+      'processPaymentWebhookEvent',
+      'webhook',
+      payload.id,
+      payload,
+      async () => {
+        if (payload.type !== 'payment.succeeded') {
+          return { received: true, ignored: true };
+        }
+
+        const payment = await this.paymentsRepository.findOne({
+          where: { intentId: payload.intentId },
+          relations: ['order', 'order.user', 'order.shipment'],
+        });
+
+        if (!payment) {
+          throw new NotFoundException('Payment not found for webhook event');
+        }
+
+        if (payment.status !== PaymentStatus.SUCCEEDED) {
+          payment.status = PaymentStatus.SUCCEEDED;
+          await this.paymentsRepository.save(payment);
+        }
+
+        if (payment.order.status !== OrderStatus.PAID) {
+          await this.transitionOrderStatus(
+            payment.order,
+            OrderStatus.PAID,
+            `Webhook processed (${payload.type})`,
+            correlationId,
+          );
+        }
+
+        return { received: true, orderId: payment.order.id };
+      },
+    );
+  }
+
+  private async recordOrderStatus(
+    order: Order,
+    status: OrderStatus,
+    note?: string,
+    correlationId?: string,
+  ): Promise<void> {
+    const annotatedNote = correlationId ? `${note || ''} [cid:${correlationId}]`.trim() : note;
+
+    await this.orderStatusHistoryRepository.save(
+      this.orderStatusHistoryRepository.create({
+        order,
+        status,
+        note: annotatedNote,
+      }),
+    );
+  }
+
+  private async transitionOrderStatus(
+    order: Order,
+    nextStatus: OrderStatus,
+    note: string,
+    correlationId: string,
+  ): Promise<void> {
+    assertValidOrderTransition(order.status, nextStatus);
+    const previousStatus = order.status;
+
+    order.status = nextStatus;
+    await this.ordersRepository.save(order);
+    await this.recordOrderStatus(order, nextStatus, note, correlationId);
+
+    this.logger.log(
+      `[cid:${correlationId}] Order #${order.id} transition ${previousStatus} -> ${nextStatus}`,
+    );
+  }
+
+  private resolveIdempotencyScope(user?: User, sessionId?: string): string {
+    if (user?.id) {
+      return `user:${user.id}`;
+    }
+    return `session:${sessionId || 'anonymous'}`;
+  }
+
+  private requestHash(payload: unknown): string {
+    return createHash('sha256').update(JSON.stringify(payload)).digest('hex');
+  }
+
+  private buildCorrelationId(operation: string, idempotencyKey?: string): string {
+    const suffix = idempotencyKey ? idempotencyKey.slice(0, 12) : Date.now().toString();
+    return `${operation}-${suffix}`;
+  }
+
+  private async runIdempotent<T>(
+    operation: string,
+    scopeKey: string,
+    idempotencyKey: string | undefined,
+    requestPayload: unknown,
+    handler: () => Promise<T>,
+  ): Promise<T> {
+    if (!idempotencyKey) {
+      return handler();
+    }
+
+    const requestHash = this.requestHash(requestPayload);
+    const existing = await this.idempotencyRepository.findOne({
+      where: { scopeKey, operation, idempotencyKey },
+    });
+
+    if (existing) {
+      if (existing.requestHash !== requestHash) {
+        throw new BadRequestException(
+          `Idempotency key "${idempotencyKey}" was reused with a different payload`,
+        );
+      }
+      return existing.responseSnapshot as T;
+    }
+
+    const response = await handler();
+    const record = this.idempotencyRepository.create({
+      scopeKey,
+      operation,
+      idempotencyKey,
+      requestHash,
+      responseSnapshot: response as any,
+    });
+    await this.idempotencyRepository.save(record);
+    return response;
+  }
+
+  private assertValidWebhookSignature(
+    payload: Record<string, unknown>,
+    signatureHeader?: string,
+  ): void {
+    const secret = process.env.PAYMENTS_WEBHOOK_SECRET;
+    if (!secret) {
+      throw new UnauthorizedException('PAYMENTS_WEBHOOK_SECRET is not configured');
+    }
+
+    if (!signatureHeader) {
+      throw new UnauthorizedException('Missing webhook signature');
+    }
+
+    const normalizedSignature = signatureHeader.replace(/^sha256=/, '');
+    const expected = createHmac('sha256', secret).update(JSON.stringify(payload)).digest('hex');
+
+    const a = Buffer.from(normalizedSignature);
+    const b = Buffer.from(expected);
+    if (a.length !== b.length || !timingSafeEqual(a, b)) {
+      throw new UnauthorizedException('Invalid webhook signature');
+    }
+  }
+
+  private async saveOrUpdateAddress(
+    user: User,
+    input: { fullName: string; line1: string; city: string; region: string; postalCode: string },
+  ): Promise<void> {
+    const existing = await this.addressBookRepository.findOne({
+      where: {
+        user,
+        line1: input.line1,
+        city: input.city,
+        region: input.region,
+        postalCode: input.postalCode,
+      },
+    });
+
+    if (existing) {
+      existing.fullName = input.fullName;
+      await this.addressBookRepository.save(existing);
+      return;
+    }
+
+    const hasDefault = await this.addressBookRepository.findOne({
+      where: { user, isDefault: true },
+    });
+
+    await this.addressBookRepository.save(
+      this.addressBookRepository.create({
+        user,
+        fullName: input.fullName,
+        line1: input.line1,
+        city: input.city,
+        region: input.region,
+        postalCode: input.postalCode,
+        isDefault: !hasDefault,
+      }),
+    );
+  }
+
+  private async upsertCheckoutProfile(
+    user: User,
+    input: {
+      shippingName?: string;
+      shippingLine1?: string;
+      shippingCity?: string;
+      shippingRegion?: string;
+      shippingPostalCode?: string;
+      cardholderName?: string;
+      cardLast4?: string;
+      cardExpiry?: string;
+    },
+  ): Promise<void> {
+    let profile = await this.checkoutProfileRepository.findOne({ where: { user } });
+
+    if (!profile) {
+      profile = this.checkoutProfileRepository.create({ user });
+    }
+
+    Object.assign(profile, {
+      shippingName: input.shippingName ?? profile.shippingName,
+      shippingLine1: input.shippingLine1 ?? profile.shippingLine1,
+      shippingCity: input.shippingCity ?? profile.shippingCity,
+      shippingRegion: input.shippingRegion ?? profile.shippingRegion,
+      shippingPostalCode: input.shippingPostalCode ?? profile.shippingPostalCode,
+      cardholderName: input.cardholderName ?? profile.cardholderName,
+      cardLast4: input.cardLast4 ?? profile.cardLast4,
+      cardExpiry: input.cardExpiry ?? profile.cardExpiry,
+    });
+
+    await this.checkoutProfileRepository.save(profile);
   }
 }

@@ -2,15 +2,10 @@
 # THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
 # ------------------------------------------------------
 
-type Product {
+type Category {
   id: ID!
-  type: String!
-  brand: String!
-  model: String!
-  subType: String!
-  price: Float!
-  colors: [String!]!
-  quantity: Float!
+  name: String!
+  description: String
   createdAt: DateTime!
   updatedAt: DateTime!
 }
@@ -20,34 +15,747 @@ A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date
 """
 scalar DateTime
 
+type Brand {
+  id: ID!
+  name: String!
+  description: String
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type Review {
+  id: ID!
+  product: Product!
+  user: User!
+  rating: Int!
+  comment: String!
+  status: ReviewStatus!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+enum ReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+type Product {
+  id: ID!
+  name: String!
+  slug: String!
+  description: String!
+  basePrice: Float!
+  thumbnail: String
+  galleryUrls: [String!]
+  published: Boolean!
+  isFeatured: Boolean!
+  averageRating: Float!
+  category: Category!
+  brand: Brand!
+  variants: [ProductVariant!]
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type Inventory {
+  id: ID!
+  variant: ProductVariant!
+  quantity: Int!
+  reserved: Int!
+  lowStockThreshold: Int!
+  updatedAt: DateTime!
+}
+
+type Payment {
+  id: ID!
+  provider: PaymentProvider!
+  status: PaymentStatus!
+  intentId: String!
+  amount: Float!
+  currency: String
+  last4: String
+  order: Order!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+enum PaymentProvider {
+  FAKEPAY
+}
+
+enum PaymentStatus {
+  REQUIRES_CONFIRMATION
+  SUCCEEDED
+  FAILED
+}
+
+type Shipment {
+  id: ID!
+  status: ShipmentStatus!
+  carrier: String
+  trackingNumber: String
+  shippedAt: DateTime
+  deliveredAt: DateTime
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+enum ShipmentStatus {
+  PENDING
+  SHIPPED
+  DELIVERED
+}
+
+type Coupon {
+  id: ID!
+  code: String!
+  type: CouponType!
+  amount: Float!
+  minOrderAmount: Float!
+  active: Boolean!
+  expiresAt: DateTime
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+enum CouponType {
+  PERCENT
+  FIXED
+}
+
+type OrderStatusHistory {
+  id: ID!
+  order: Order!
+  status: OrderStatus!
+  note: String
+  createdAt: DateTime!
+}
+
+enum OrderStatus {
+  CREATED
+  PENDING_PAYMENT
+  PAID
+  FULFILLED
+  CANCELLED
+}
+
+type ReturnRequest {
+  id: ID!
+  order: Order!
+  user: User!
+  reason: String!
+  exchangePreferred: Boolean!
+  status: ReturnRequestStatus!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+enum ReturnRequestStatus {
+  REQUESTED
+  APPROVED
+  REJECTED
+  COMPLETED
+}
+
+type Order {
+  id: ID!
+  user: User!
+  items: [OrderItem!]
+  coupon: Coupon
+  subtotal: Float!
+  discount: Float!
+  tax: Float!
+  shipping: Float!
+  total: Float!
+  status: OrderStatus!
+  shippingName: String!
+  shippingAddress: String!
+  shippingCity: String!
+  shippingRegion: String!
+  shippingPostalCode: String!
+  payment: Payment
+  shipment: Shipment
+  statusHistory: [OrderStatusHistory!]
+  returnRequests: [ReturnRequest!]
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type OrderItem {
+  id: ID!
+  variant: ProductVariant!
+  productName: String!
+  variantLabel: String!
+  sku: String!
+  quantity: Int!
+  unitPrice: Float!
+  lineTotal: Float!
+}
+
+type ProductVariant {
+  id: ID!
+  sku: String!
+  color: String
+  size: String
+  priceAdjustment: Float!
+  product: Product!
+  inventory: Inventory
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type CartItem {
+  id: ID!
+  cart: Cart!
+  variant: ProductVariant!
+  quantity: Int!
+  unitPrice: Float!
+}
+
+type Cart {
+  id: ID!
+  sessionId: String
+  active: Boolean!
+  user: User
+  promoCode: String
+  giftCardCode: String
+  items: [CartItem!]
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type SupportMessage {
+  id: ID!
+  user: User
+  email: String
+  message: String!
+  status: SupportMessageStatus!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+enum SupportMessageStatus {
+  OPEN
+  RESOLVED
+}
+
+type AddressBookEntry {
+  id: ID!
+  user: User!
+  label: String
+  fullName: String!
+  line1: String!
+  city: String!
+  region: String!
+  postalCode: String!
+  isDefault: Boolean!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type CheckoutProfile {
+  id: ID!
+  user: User!
+  shippingName: String
+  shippingLine1: String
+  shippingCity: String
+  shippingRegion: String
+  shippingPostalCode: String
+  cardholderName: String
+  cardLast4: String
+  cardExpiry: String
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type User {
+  id: ID!
+  email: String!
+  fullName: String!
+  phone: String
+  role: UserRole!
+  address: String
+  active: Boolean!
+  carts: [Cart!]
+  orders: [Order!]
+  addressBookEntries: [AddressBookEntry!]
+  checkoutProfile: CheckoutProfile
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+enum UserRole {
+  CUSTOMER
+  ADMIN
+}
+
+type AnalyticsEvent {
+  id: ID!
+  eventType: String!
+  sessionId: String
+  metadata: JSON
+  createdAt: DateTime!
+}
+
+"""
+The `JSON` scalar type represents JSON values as specified by [ECMA-404](http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf).
+"""
+scalar JSON
+
+type ShippingRule {
+  id: ID!
+  region: String!
+  flatRate: Float!
+  freeShippingOver: Float!
+  active: Boolean!
+}
+
+type TaxRule {
+  id: ID!
+  region: String!
+  rate: Float!
+  active: Boolean!
+}
+
+type AuthTokens {
+  accessToken: String!
+  refreshToken: String!
+}
+
+type AuthPayload {
+  user: User!
+  tokens: AuthTokens!
+}
+
+type ProductListResult {
+  items: [Product!]!
+  total: Int!
+  page: Int!
+  pageSize: Int!
+}
+
+type ProductDetail {
+  id: ID!
+  name: String!
+  slug: String!
+  description: String!
+  basePrice: Float!
+  thumbnail: String
+  galleryUrls: [String!]
+  published: Boolean!
+  isFeatured: Boolean!
+  averageRating: Float!
+  category: Category!
+  brand: Brand!
+  variants: [ProductVariant!]
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  relatedProducts: [Product!]
+}
+
+type CheckoutTotals {
+  subtotal: Float!
+  discount: Float!
+  shipping: Float!
+  tax: Float!
+  total: Float!
+  coupon: Coupon
+}
+
+type CheckoutPreview {
+  cart: Cart!
+  totals: CheckoutTotals!
+}
+
+type PaymentIntentPayload {
+  payment: Payment!
+  clientSecret: String!
+}
+
+type ConfirmPaymentPayload {
+  order: Order!
+  payment: Payment!
+}
+
+type ShippingEstimate {
+  region: String!
+  flatRate: Float!
+  freeShippingOver: Float!
+  remainingForFreeShipping: Float!
+  eligibleForFreeShipping: Boolean!
+  estimatedMinDays: Float!
+  estimatedMaxDays: Float!
+}
+
+type ActionResponse {
+  success: Boolean!
+  message: String!
+}
+
 type Query {
-  findAll: [Product!]!
-  findOne(id: Int!): Product!
+  me: User!
+  cart(context: CartContextInput): Cart!
+  products(filter: ProductFilterInput, pagination: PaginationInput, sort: SortInput): ProductListResult!
+  product(id: Int!, sessionId: String): ProductDetail!
+  featuredProducts: [Product!]!
+  categories: [Category!]!
+  brands: [Brand!]!
+  relatedProducts(productId: Int!): [Product!]!
+  checkoutPreview(input: CheckoutTotalsInput!): CheckoutPreview!
+  shippingEstimate(input: ShippingEstimateInput!): ShippingEstimate!
+  myOrders: [Order!]!
+  orderById(id: Int!): Order!
+  orderStatusTimeline(orderId: Int!): [OrderStatusHistory!]!
+  myReturnRequests: [ReturnRequest!]!
+  reviews(filter: ReviewFilterInput!): [Review!]!
+  adminCategories: [Category!]!
+  adminBrands: [Brand!]!
+  adminCoupons: [Coupon!]!
+  adminProducts: [Product!]!
+  adminUsers: [User!]!
+  adminOrders: [Order!]!
+  adminTaxRules: [TaxRule!]!
+  adminShippingRules: [ShippingRule!]!
+  adminAnalyticsEvents(limit: Int): [AnalyticsEvent!]!
+  myWishlist: [Product!]!
+  myAddresses: [AddressBookEntry!]!
+  myCheckoutProfile: CheckoutProfile
+}
+
+input CartContextInput {
+  sessionId: String
+}
+
+input ProductFilterInput {
+  search: String
+  categoryIds: [Int!]
+  brandIds: [Int!]
+  colors: [String!]
+  minPrice: Float
+  maxPrice: Float
+  inStockOnly: Boolean
+}
+
+input PaginationInput {
+  page: Int! = 1
+  pageSize: Int! = 12
+}
+
+input SortInput {
+  field: String! = "createdAt"
+  direction: String! = "DESC"
+}
+
+input CheckoutTotalsInput {
+  couponCode: String
+  region: String!
+  sessionId: String
+}
+
+input ShippingEstimateInput {
+  region: String!
+  subtotal: Float!
+}
+
+input ReviewFilterInput {
+  productId: Int!
+  status: ReviewStatus
 }
 
 type Mutation {
-  createProduct(createProductInput: CreateProductInput!): Product!
-  updateProduct(updateProductInput: UpdateProductInput!): Product!
-  removeProduct(id: Int!): Product!
+  register(input: RegisterInput!): AuthPayload!
+  login(input: LoginInput!): AuthPayload!
+  refresh(input: RefreshInput!): AuthPayload!
+  forgotPassword(email: String!): Boolean!
+  addToCart(input: AddCartItemInput!): Cart!
+  updateCartItem(input: UpdateCartItemInput!): Cart!
+  removeCartItem(input: RemoveCartItemInput!): Cart!
+  mergeGuestCart(input: MergeGuestCartInput!): Cart!
+  applyCartPromo(input: ApplyCartPromoInput!): Cart!
+  removeCartPromo(input: RemoveCartPromoInput): Cart!
+  createOrder(input: CreateOrderInput!): Order!
+  createPaymentIntent(input: CreatePaymentIntentInput!): PaymentIntentPayload!
+  confirmPayment(input: ConfirmPaymentInput!): ConfirmPaymentPayload!
+  createReturnRequest(input: CreateReturnRequestInput!): ReturnRequest!
+  createReview(input: CreateReviewInput!): Review!
+  moderateReview(input: ModerateReviewInput!): Review!
+  adminCreateCategory(input: CreateCategoryInput!): Category!
+  adminUpdateCategory(input: UpdateCategoryInput!): Category!
+  adminDeleteCategory(id: Int!): Boolean!
+  adminCreateBrand(input: CreateBrandInput!): Brand!
+  adminUpdateBrand(input: UpdateBrandInput!): Brand!
+  adminDeleteBrand(id: Int!): Boolean!
+  adminCreateProduct(input: CreateProductInput!): Product!
+  adminUpdateProduct(input: UpdateProductInput!): Product!
+  adminDeleteProduct(id: Int!): Boolean!
+  adminCreateVariant(input: CreateVariantInput!): ProductVariant!
+  adminUpdateInventory(input: UpdateInventoryInput!): Inventory!
+  adminCreateCoupon(input: CreateCouponInput!): Coupon!
+  adminUpdateCoupon(input: UpdateCouponInput!): Coupon!
+  adminDeleteCoupon(id: Int!): Boolean!
+  adminUpdateUserRole(input: UpdateUserRoleInput!): User!
+  adminUpdateUserStatus(input: UpdateUserStatusInput!): User!
+  adminDeleteUser(id: Int!): Boolean!
+  adminUpdateOrderStatus(input: UpdateOrderStatusInput!): Order!
+  adminUpsertTaxRule(input: UpsertTaxRuleInput!): TaxRule!
+  adminUpsertShippingRule(input: UpsertShippingRuleInput!): ShippingRule!
+  addToWishlist(input: WishlistProductInput!): [Product!]!
+  removeFromWishlist(input: WishlistProductInput!): [Product!]!
+  subscribeBackInStock(input: BackInStockSubscriptionInput!): ActionResponse!
+  subscribeNewsletter(input: NewsletterSubscriptionInput!): ActionResponse!
+  submitSupportMessage(input: SupportMessageInput!): SupportMessage!
+  trackClientAnalytics(input: ClientAnalyticsInput!): AnalyticsEvent!
+  saveAddress(input: SaveAddressInput!): AddressBookEntry!
+  updateAddress(input: UpdateAddressInput!): AddressBookEntry!
+  deleteAddress(id: Int!): Boolean!
+  setDefaultAddress(id: Int!): AddressBookEntry!
+}
+
+input RegisterInput {
+  email: String!
+  password: String!
+  fullName: String!
+  phone: String
+}
+
+input LoginInput {
+  email: String!
+  password: String!
+  sessionId: String
+}
+
+input RefreshInput {
+  refreshToken: String!
+}
+
+input AddCartItemInput {
+  variantId: Int!
+  quantity: Int! = 1
+  sessionId: String
+}
+
+input UpdateCartItemInput {
+  cartItemId: Int!
+  quantity: Int!
+  sessionId: String
+}
+
+input RemoveCartItemInput {
+  cartItemId: Int!
+  sessionId: String
+}
+
+input MergeGuestCartInput {
+  sessionId: String!
+}
+
+input ApplyCartPromoInput {
+  couponCode: String!
+  sessionId: String
+}
+
+input RemoveCartPromoInput {
+  sessionId: String
+}
+
+input CreateOrderInput {
+  savedAddressId: Int
+  shippingName: String!
+  shippingAddress: String!
+  shippingCity: String!
+  shippingRegion: String!
+  shippingPostalCode: String!
+  couponCode: String
+  sessionId: String
+  saveAddress: Boolean! = false
+  saveCheckoutProfile: Boolean! = true
+}
+
+input CreatePaymentIntentInput {
+  orderId: Int!
+}
+
+input ConfirmPaymentInput {
+  intentId: String!
+  cardLast4: String! = "4242"
+  cardholderName: String
+  cardExpiry: String
+}
+
+input CreateReturnRequestInput {
+  orderId: Int!
+  reason: String!
+  exchangePreferred: Boolean! = false
+}
+
+input CreateReviewInput {
+  productId: Int!
+  rating: Int!
+  comment: String!
+}
+
+input ModerateReviewInput {
+  reviewId: Int!
+  status: ReviewStatus!
+}
+
+input CreateCategoryInput {
+  name: String!
+  description: String
+}
+
+input UpdateCategoryInput {
+  name: String!
+  description: String
+  id: Int!
+}
+
+input CreateBrandInput {
+  name: String!
+  description: String
+}
+
+input UpdateBrandInput {
+  name: String!
+  description: String
+  id: Int!
 }
 
 input CreateProductInput {
-  type: String!
-  brand: String!
-  model: String!
-  sub_type: String!
-  price: Float!
-  colors: [String!]!
-  quantity: Float!
+  name: String!
+  slug: String!
+  description: String!
+  basePrice: Float!
+  categoryId: Int!
+  brandId: Int!
+  thumbnail: String
+  galleryUrls: [String!]
+  isFeatured: Boolean! = false
+  published: Boolean! = true
 }
 
 input UpdateProductInput {
-  type: String
-  brand: String
-  model: String
-  sub_type: String
-  price: Float
-  colors: [String!]
-  quantity: Float
+  name: String!
+  slug: String!
+  description: String!
+  basePrice: Float!
+  categoryId: Int!
+  brandId: Int!
+  thumbnail: String
+  galleryUrls: [String!]
+  isFeatured: Boolean! = false
+  published: Boolean! = true
+  id: Int!
+}
+
+input CreateVariantInput {
+  productId: Int!
+  sku: String!
+  color: String
+  size: String
+  priceAdjustment: Float! = 0
+  inventoryQuantity: Int! = 0
+}
+
+input UpdateInventoryInput {
+  variantId: Int!
+  quantity: Int!
+  lowStockThreshold: Int
+}
+
+input CreateCouponInput {
+  code: String!
+  type: CouponType!
+  amount: Float!
+  minOrderAmount: Float! = 0
+  active: Boolean! = true
+  expiresAt: DateTime
+}
+
+input UpdateCouponInput {
+  code: String!
+  type: CouponType!
+  amount: Float!
+  minOrderAmount: Float! = 0
+  active: Boolean! = true
+  expiresAt: DateTime
+  id: Int!
+}
+
+input UpdateUserRoleInput {
+  userId: Int!
+  role: UserRole!
+}
+
+input UpdateUserStatusInput {
+  userId: Int!
+  active: Boolean!
+}
+
+input UpdateOrderStatusInput {
+  orderId: Int!
+  status: OrderStatus!
+}
+
+input UpsertTaxRuleInput {
+  region: String!
+  rate: Float!
+  active: Boolean! = true
+}
+
+input UpsertShippingRuleInput {
+  region: String!
+  flatRate: Float!
+  freeShippingOver: Float! = 0
+  active: Boolean! = true
+}
+
+input WishlistProductInput {
+  productId: Int!
+}
+
+input BackInStockSubscriptionInput {
+  productId: Int
+  variantId: Int
+  email: String!
+}
+
+input NewsletterSubscriptionInput {
+  email: String!
+  locale: String
+}
+
+input SupportMessageInput {
+  message: String!
+  email: String
+}
+
+input ClientAnalyticsInput {
+  eventType: String!
+  sessionId: String
+  metadata: JSON
+  productId: Int
+  orderId: Int
+}
+
+input SaveAddressInput {
+  label: String
+  fullName: String!
+  line1: String!
+  city: String!
+  region: String!
+  postalCode: String!
+  isDefault: Boolean! = false
+}
+
+input UpdateAddressInput {
+  label: String
+  fullName: String!
+  line1: String!
+  city: String!
+  region: String!
+  postalCode: String!
+  isDefault: Boolean! = false
   id: Int!
 }
