@@ -15,6 +15,14 @@ Enforced checks:
 - Backend: `yarn build`, `yarn test --runInBand`
 - Optional PR-only Playwright run uploads report artifacts and is non-blocking.
 
+## Engineering docs
+- Architecture: `/Users/danielwellz/Work/Soren Express/docs/architecture.md`
+- ERD: `/Users/danielwellz/Work/Soren Express/docs/erd.md`
+- Checkout flow: `/Users/danielwellz/Work/Soren Express/docs/checkout-flow.md`
+- Observability: `/Users/danielwellz/Work/Soren Express/docs/observability.md`
+- RBAC matrix: `/Users/danielwellz/Work/Soren Express/docs/security-rbac.md`
+- Screenshot artifacts: `/Users/danielwellz/Work/Soren Express/docs/screenshots/README.md`
+
 ## Features
 
 ### Storefront
