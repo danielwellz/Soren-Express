@@ -1,0 +1,116 @@
+# ------------------------------------------------------
+# THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
+# ------------------------------------------------------
+
+type Product {
+  id: ID
+  type: String!
+  brand: String!
+  model: String!
+  subType: String!
+  price: Float!
+  color: String!
+  quantity: Float!
+  imgUrls: [String!]
+  description: String
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+"""
+A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date-time format.
+"""
+scalar DateTime
+
+type User {
+  id: ID!
+  fullName: String!
+  phone: String!
+  verificationCode: String!
+  address: String!
+  postalCode: String!
+  email: String!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type ProductReturnType {
+  success: Boolean
+  message: String
+  product: Product
+}
+
+type VerificationResponse {
+  success: Boolean!
+  message: String!
+}
+
+type VerificationResult {
+  success: Boolean!
+  message: String!
+  user: User
+}
+
+type Query {
+  products(filter: ProductFilterInput, pagination: PaginationInput): [Product!]!
+  product(id: Int!): Product!
+  getUser(id: Float!): User!
+  getUsers: [User!]!
+}
+
+input ProductFilterInput {
+  type: [String!]
+  brand: [String!]
+  subType: [String!]
+  color: String
+  minPrice: Int
+  maxPrice: Int
+}
+
+input PaginationInput {
+  limit: Int
+  offset: Int
+}
+
+type Mutation {
+  createProduct(createProductInput: CreateProductInput!): ProductReturnType!
+  updateProduct(updateProductInput: UpdateProductInput!): ProductReturnType!
+  removeProduct(id: String!): ProductReturnType!
+  createUser(phone: String!, verificationCode: String!): User!
+  sendVerificationCode(phone: String!): VerificationResponse!
+  verifyCode(phone: String!, code: String!): VerificationResult!
+  updateUser(input: UpdateUserInput!): User!
+  deleteUser(id: Float!): Boolean!
+}
+
+input CreateProductInput {
+  type: String!
+  brand: String!
+  model: String!
+  subType: String!
+  price: Float!
+  color: String!
+  quantity: Float!
+  description: String
+  id: Float = null
+}
+
+input UpdateProductInput {
+  type: String
+  brand: String
+  model: String
+  subType: String
+  price: Float
+  color: String!
+  quantity: Float
+  description: String
+  id: Int!
+  sub_type: String
+}
+
+input UpdateUserInput {
+  id: Float!
+  phone: String
+  fullName: String
+  email: String
+}

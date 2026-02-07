@@ -1,0 +1,74 @@
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  OneToMany,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
+} from 'typeorm';
+import { Field, ID, ObjectType } from '@nestjs/graphql';
+import { Cart } from './cart.entity';
+import { Order } from './order.entity';
+import { Review } from './review.entity';
+import { AnalyticsEvent } from './analytics-event.entity';
+import { UserRole } from 'src/common/enums';
+
+@ObjectType()
+@Entity({ name: 'users' })
+export class User {
+  @Field(() => ID)
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @Field()
+  @Column({ unique: true })
+  email: string;
+
+  @Column({ name: 'password_hash' })
+  passwordHash: string;
+
+  @Field()
+  @Column({ name: 'full_name' })
+  fullName: string;
+
+  @Field({ nullable: true })
+  @Column({ nullable: true })
+  phone?: string;
+
+  @Field(() => UserRole)
+  @Column({ type: 'enum', enum: UserRole, default: UserRole.CUSTOMER })
+  role: UserRole;
+
+  @Field({ nullable: true })
+  @Column({ nullable: true })
+  address?: string;
+
+  @Column({ name: 'refresh_token_hash', nullable: true })
+  refreshTokenHash?: string;
+
+  @Field()
+  @Column({ default: true })
+  active: boolean;
+
+  @Field(() => [Cart], { nullable: true })
+  @OneToMany(() => Cart, (cart) => cart.user)
+  carts?: Cart[];
+
+  @Field(() => [Order], { nullable: true })
+  @OneToMany(() => Order, (order) => order.user)
+  orders?: Order[];
+
+  @OneToMany(() => Review, (review) => review.user)
+  reviews?: Review[];
+
+  @OneToMany(() => AnalyticsEvent, (event) => event.user)
+  analyticsEvents?: AnalyticsEvent[];
+
+  @Field()
+  @CreateDateColumn({ name: 'created_at' })
+  createdAt: Date;
+
+  @Field()
+  @UpdateDateColumn({ name: 'updated_at' })
+  updatedAt: Date;
+}

@@ -1,0 +1,113 @@
+@media (max-width: 1350px) {
+  .carouselContainer {
+    height: 44vh; /* Adjust the height for smaller screens */
+    margin-top: 13%; /* Adjust the value for smaller screens */
+    margin-bottom: 9%;
+  }
+
+  .carouselImage {
+    height: 50%; /* Adjust the height for smaller screens */
+  }
+}
+
+@media (max-width: 1250px) {
+  .carouselContainer {
+    height: 43vh; /* Adjust the height for smaller screens */
+    margin-top: 15%; /* Adjust the value for smaller screens */
+    margin-bottom: 6%;
+  }
+
+  .carouselImage {
+    height: 50%; /* Adjust the height for smaller screens */
+  }
+}
+
+@media (max-width: 1150px) {
+  .carouselContainer {
+    height: 35vh; /* Adjust the height for smaller screens */
+    margin-top: 16%; /* Adjust the value for smaller screens */
+    margin-bottom: 11%;
+  }
+
+  .carouselImage {
+    height: 50%; /* Adjust the height for smaller screens */
+  }
+}
+@media (max-width: 1050px) {
+  .carouselContainer {
+    height: 30vh; /* Adjust the height for smaller screens */
+    margin-top: 17%; /* Adjust the value for smaller screens */
+    margin-bottom: 14%;
+  }
+
+  .carouselImage {
+    height: 50%; /* Adjust the height for smaller screens */
+  }
+}
+@media (max-width: 950px) {
+  .carouselContainer {
+    height: 30vh; /* Adjust the height for smaller screens */
+    margin-top: 19%; /* Adjust the value for smaller screens */
+    margin-bottom: 12%;
+  }
+
+  .carouselImage {
+    height: 50%; /* Adjust the height for smaller screens */
+  }
+}
+
+@media (max-width: 850px) {
+  .carouselContainer {
+    height: 30vh; /* Adjust the height for smaller screens */
+    margin-top: 19%; /* Adjust the value for smaller screens */
+    margin-bottom: 6%;
+  }
+
+  .carouselImage {
+    height: 50%; /* Adjust the height for smaller screens */
+  }
+}
+@media (max-width: 750px) {
+  .carouselContainer {
+    height: 25vh; /* Adjust the height for smaller screens */
+    margin-top: 23%; /* Adjust the value for smaller screens */
+    margin-bottom: 6%;
+  }
+
+  .carouselImage {
+    height: 50%; /* Adjust the height for smaller screens */
+  }
+}
+@media (max-width: 650px) {
+  .carouselContainer {
+    height: 20vh; /* Adjust the height for smaller screens */
+    margin-top: 28%; /* Adjust the value for smaller screens */
+    margin-bottom: 10%;
+  }
+
+  .carouselImage {
+    height: 50%; /* Adjust the height for smaller screens */
+  }
+}
+@media (max-width: 550px) {
+  .carouselContainer {
+    height: 18vh; /* Adjust the height for smaller screens */
+    margin-top: 33%; /* Adjust the value for smaller screens */
+    margin-bottom: 6%;
+  }
+
+  .carouselImage {
+    height: 50%; /* Adjust the height for smaller screens */
+  }
+}
+@media (max-width: 450px) {
+  .carouselContainer {
+    height: 16vh; /* Adjust the height for smaller screens */
+    margin-top: 38%; /* Adjust the value for smaller screens */
+    margin-bottom: 6%;
+  }
+
+  .carouselImage {
+    height: 50%; /* Adjust the height for smaller screens */
+  }
+}

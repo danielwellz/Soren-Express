@@ -1,0 +1,13 @@
+{
+  "name": "soren-express-workspace",
+  "private": true,
+  "scripts": {
+    "dev": "(cd soren-back-end-origin && yarn start:dev) & (cd soren-front-end-master && yarn start)",
+    "dev:backend": "cd soren-back-end-origin && yarn start:dev",
+    "dev:frontend": "cd soren-front-end-master && yarn start",
+    "seed": "cd soren-back-end-origin && yarn seed",
+    "docker:up": "docker compose up --build",
+    "docker:down": "docker compose down",
+    "docker:reset": "docker compose down -v --remove-orphans"
+  }
+}
