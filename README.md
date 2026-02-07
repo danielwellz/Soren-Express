@@ -6,6 +6,15 @@ A full-stack e-commerce demo built for portfolio use:
 
 This build includes complete browsing, product detail, cart, checkout, account history, admin dashboard, fake payments, mock notifications, and analytics events.
 
+## CI
+[![Frontend CI](https://github.com/OWNER/REPO/actions/workflows/frontend.yml/badge.svg)](https://github.com/OWNER/REPO/actions/workflows/frontend.yml)
+[![Backend CI](https://github.com/OWNER/REPO/actions/workflows/backend.yml/badge.svg)](https://github.com/OWNER/REPO/actions/workflows/backend.yml)
+
+Enforced checks:
+- Frontend: `yarn lint`, `CI=true yarn test --watchAll=false`, `yarn build`
+- Backend: `yarn build`, `yarn test --runInBand`
+- Optional PR-only Playwright run uploads report artifacts and is non-blocking.
+
 ## Features
 
 ### Storefront

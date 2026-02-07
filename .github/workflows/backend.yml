@@ -1,0 +1,37 @@
+name: backend
+
+on:
+  push:
+    paths:
+      - 'soren-back-end-origin/**'
+      - '.github/workflows/backend.yml'
+  pull_request:
+    paths:
+      - 'soren-back-end-origin/**'
+      - '.github/workflows/backend.yml'
+
+jobs:
+  backend-checks:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: soren-back-end-origin
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: yarn
+          cache-dependency-path: soren-back-end-origin/yarn.lock
+
+      - name: Install
+        run: yarn install --frozen-lockfile
+
+      - name: Build
+        run: yarn build
+
+      - name: Unit tests
+        run: yarn test --runInBand
