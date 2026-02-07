@@ -45,6 +45,11 @@ This build includes complete browsing, product detail, cart, checkout, account h
 - `/Users/danielwellz/Work/Soren Express/soren-front-end-master`
 - `/Users/danielwellz/Work/Soren Express/soren-back-end-origin`
 
+## Git hygiene
+- Generated artifacts are ignored at the repo root (`dist`, `build`, `output`, `coverage`, Playwright reports, logs, editor junk).
+- Secret-bearing env files (`.env`, `.env.*`) are ignored. Only template files like `.env.example` stay tracked.
+- Dependency/vendor directories (`node_modules`) are ignored to keep commits deterministic and reviewable.
+
 ## Run with Docker
 ```bash
 cp .env.example .env
@@ -69,8 +74,8 @@ Required defaults in `.env.local`:
 PORT=3000
 DB_HOST=localhost
 DB_PORT=3306
-DB_USERNAME=root
-DB_PASSWORD=
+DB_USERNAME=soren
+DB_PASSWORD=soren_password
 DB_DATABASE=soren_store
 DB_SYNCHRONIZE=true
 JWT_ACCESS_SECRET=dev-access-secret
@@ -94,6 +99,7 @@ cd /Users/danielwellz/Work/Soren\ Express/soren-front-end-master && yarn install
 cd /Users/danielwellz/Work/Soren\ Express/soren-back-end-origin
 yarn seed
 ```
+`seed`/`db:sync`/bootstrap now load `.env.local` and `.env` automatically (without overriding pre-set shell env vars), so local scripts resolve DB credentials consistently.
 
 ### 4) Run apps
 Option A (separate terminals):
@@ -164,6 +170,10 @@ cd /Users/danielwellz/Work/Soren\ Express/soren-front-end-master
 yarn test --watchAll=false
 yarn build
 ```
+
+Note:
+- `soren-front-end-master/.env.production` intentionally sets `GENERATE_SOURCEMAP=false` to avoid third-party sourcemap parse warnings (for example from `stylis-plugin-rtl`) during production builds.
+- Development sourcemaps remain enabled.
 
 ## DB strategy
 This project uses a reliable **TypeORM synchronize + deterministic seed** strategy for local development:
