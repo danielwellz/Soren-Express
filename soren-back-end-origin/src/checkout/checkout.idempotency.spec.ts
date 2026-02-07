@@ -74,6 +74,13 @@ describe('CheckoutService idempotency', () => {
       }),
     } as any;
 
+    const inventoryReservationsRepository = {
+      find: jest.fn().mockResolvedValue([]),
+      findOne: jest.fn().mockResolvedValue(null),
+      create: jest.fn((value) => value),
+      save: jest.fn(async (value) => value),
+    } as any;
+
     const cartService = {
       getCartForUserOrSession: jest.fn().mockResolvedValue(cart),
       clearCart: jest.fn().mockResolvedValue(undefined),
@@ -103,6 +110,7 @@ describe('CheckoutService idempotency', () => {
       checkoutProfileRepository,
       orderStatusHistoryRepository,
       idempotencyRepository,
+      inventoryReservationsRepository,
       cartService,
       pricingService,
       { trackEvent: jest.fn().mockResolvedValue(undefined) } as any,

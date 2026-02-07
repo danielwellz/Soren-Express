@@ -8,6 +8,7 @@ import { Category } from './category.entity';
 import { CheckoutProfile } from './checkout-profile.entity';
 import { Coupon } from './coupon.entity';
 import { Inventory } from './inventory.entity';
+import { InventoryReservation } from './inventory-reservation.entity';
 import { IdempotencyRecord } from './idempotency-record.entity';
 import { NewsletterSubscription } from './newsletter-subscription.entity';
 import { NotificationLog } from './notification-log.entity';
@@ -35,6 +36,7 @@ export const ENTITIES = [
   Product,
   ProductVariant,
   Inventory,
+  InventoryReservation,
   IdempotencyRecord,
   WishlistItem,
   BackInStockSubscription,
@@ -67,6 +69,7 @@ export {
   CheckoutProfile,
   Coupon,
   Inventory,
+  InventoryReservation,
   IdempotencyRecord,
   NewsletterSubscription,
   NotificationLog,

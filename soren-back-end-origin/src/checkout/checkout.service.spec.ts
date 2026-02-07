@@ -20,6 +20,7 @@ describe('CheckoutService calculateTotals', () => {
       {} as any,
       {} as any,
       { findOne: jest.fn(), create: jest.fn(), save: jest.fn() } as any,
+      { findOne: jest.fn(), find: jest.fn(), create: jest.fn(), save: jest.fn() } as any,
       { getCartForUserOrSession: jest.fn(), clearCart: jest.fn() } as any,
       {
         calculateTotals: jest.fn().mockReturnValue({

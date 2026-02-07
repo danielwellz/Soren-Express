@@ -29,6 +29,13 @@ export enum ShipmentStatus {
   DELIVERED = 'DELIVERED',
 }
 
+export enum InventoryReservationStatus {
+  ACTIVE = 'ACTIVE',
+  COMMITTED = 'COMMITTED',
+  RELEASED = 'RELEASED',
+  EXPIRED = 'EXPIRED',
+}
+
 export enum ReviewStatus {
   PENDING = 'PENDING',
   APPROVED = 'APPROVED',
@@ -63,6 +70,7 @@ registerEnumType(OrderStatus, { name: 'OrderStatus' });
 registerEnumType(PaymentStatus, { name: 'PaymentStatus' });
 registerEnumType(PaymentProvider, { name: 'PaymentProvider' });
 registerEnumType(ShipmentStatus, { name: 'ShipmentStatus' });
+registerEnumType(InventoryReservationStatus, { name: 'InventoryReservationStatus' });
 registerEnumType(ReviewStatus, { name: 'ReviewStatus' });
 registerEnumType(CouponType, { name: 'CouponType' });
 registerEnumType(ReturnRequestStatus, { name: 'ReturnRequestStatus' });

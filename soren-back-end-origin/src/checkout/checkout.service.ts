@@ -14,6 +14,7 @@ import {
   Cart,
   CheckoutProfile,
   Coupon,
+  InventoryReservation,
   IdempotencyRecord,
   Inventory,
   Order,
@@ -27,6 +28,7 @@ import {
 } from 'src/entities';
 import {
   OrderStatus,
+  InventoryReservationStatus,
   PaymentProvider,
   PaymentStatus,
   ShipmentStatus,
@@ -53,6 +55,7 @@ import { NotificationService } from 'src/notifications/notification.service';
 @Injectable()
 export class CheckoutService {
   private readonly logger = new Logger(CheckoutService.name);
+  private readonly reservationLocks = new Map<number, Promise<void>>();
 
   constructor(
     @InjectRepository(Cart)
@@ -81,6 +84,8 @@ export class CheckoutService {
     private readonly orderStatusHistoryRepository: Repository<OrderStatusHistory>,
     @InjectRepository(IdempotencyRecord)
     private readonly idempotencyRepository: Repository<IdempotencyRecord>,
+    @InjectRepository(InventoryReservation)
+    private readonly inventoryReservationsRepository: Repository<InventoryReservation>,
     private readonly cartService: CartService,
     private readonly pricingService: PricingService,
     private readonly analyticsService: AnalyticsService,
@@ -258,6 +263,13 @@ export class CheckoutService {
           throw new BadRequestException('Order is not payable');
         }
 
+        await this.reserveInventoryForOrder(
+          order,
+          user,
+          undefined,
+          correlationId,
+        );
+
         const existing = await this.paymentsRepository.findOne({ where: { order } });
         if (existing) {
           if (order.status === OrderStatus.CREATED) {
@@ -354,22 +366,7 @@ export class CheckoutService {
           };
         }
 
-        for (const item of payment.order.items) {
-          const inventory = await this.inventoryRepository.findOne({
-            where: { variant: item.variant },
-          });
-          if (!inventory || inventory.quantity - inventory.reserved < item.quantity) {
-            throw new BadRequestException(`Insufficient inventory for SKU ${item.sku}`);
-          }
-        }
-
-        for (const item of payment.order.items) {
-          const inventory = await this.inventoryRepository.findOne({
-            where: { variant: item.variant },
-          });
-          inventory.quantity -= item.quantity;
-          await this.inventoryRepository.save(inventory);
-        }
+        await this.commitReservationsForOrder(payment.order, correlationId);
 
         payment.status = PaymentStatus.SUCCEEDED;
         payment.last4 = input.cardLast4;
@@ -537,6 +534,7 @@ export class CheckoutService {
         }
 
         if (payment.status !== PaymentStatus.SUCCEEDED) {
+          await this.commitReservationsForOrder(payment.order, correlationId);
           payment.status = PaymentStatus.SUCCEEDED;
           await this.paymentsRepository.save(payment);
         }
@@ -583,11 +581,206 @@ export class CheckoutService {
 
     order.status = nextStatus;
     await this.ordersRepository.save(order);
+    if (nextStatus === OrderStatus.CANCELLED) {
+      await this.releaseReservationsForOrder(order, 'Order cancelled', correlationId);
+    }
     await this.recordOrderStatus(order, nextStatus, note, correlationId);
 
     this.logger.log(
       `[cid:${correlationId}] Order #${order.id} transition ${previousStatus} -> ${nextStatus}`,
     );
+  }
+
+  private async withVariantLock<T>(variantId: number, handler: () => Promise<T>): Promise<T> {
+    while (this.reservationLocks.has(variantId)) {
+      await this.reservationLocks.get(variantId);
+    }
+
+    let release: () => void = () => undefined;
+    const lock = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    this.reservationLocks.set(variantId, lock);
+
+    try {
+      return await handler();
+    } finally {
+      this.reservationLocks.delete(variantId);
+      release();
+    }
+  }
+
+  private reservationExpiryDate(): Date {
+    const ttlMinutes = Number(process.env.INVENTORY_RESERVATION_TTL_MINUTES || 15);
+    return new Date(Date.now() + Math.max(ttlMinutes, 1) * 60_000);
+  }
+
+  private async expireStaleReservations(): Promise<void> {
+    const now = new Date();
+    const activeReservations = await this.inventoryReservationsRepository.find({
+      where: { status: InventoryReservationStatus.ACTIVE },
+    });
+
+    for (const reservation of activeReservations) {
+      if (new Date(reservation.expiresAt) <= now) {
+        reservation.status = InventoryReservationStatus.EXPIRED;
+        await this.inventoryReservationsRepository.save(reservation);
+      }
+    }
+  }
+
+  private async activeReservationQuantityForVariant(variantId: number): Promise<number> {
+    const now = new Date();
+    const activeReservations = await this.inventoryReservationsRepository.find({
+      where: { status: InventoryReservationStatus.ACTIVE },
+      relations: ['variant'],
+    });
+
+    return activeReservations.reduce((sum, reservation) => {
+      if (reservation.variant?.id !== variantId) {
+        return sum;
+      }
+      if (new Date(reservation.expiresAt) <= now) {
+        return sum;
+      }
+      return sum + Number(reservation.quantity || 0);
+    }, 0);
+  }
+
+  private async reserveInventoryForOrder(
+    order: Order,
+    user?: User,
+    sessionId?: string,
+    correlationId?: string,
+  ): Promise<void> {
+    await this.expireStaleReservations();
+
+    for (const item of order.items || []) {
+      await this.withVariantLock(item.variant.id, async () => {
+        const existing = await this.inventoryReservationsRepository.findOne({
+          where: {
+            order,
+            status: InventoryReservationStatus.ACTIVE,
+            variant: item.variant,
+          },
+        });
+
+        if (existing && new Date(existing.expiresAt) > new Date()) {
+          return;
+        }
+
+        if (existing) {
+          existing.status = InventoryReservationStatus.EXPIRED;
+          await this.inventoryReservationsRepository.save(existing);
+        }
+
+        const inventory = await this.inventoryRepository.findOne({
+          where: { variant: item.variant },
+        });
+        if (!inventory) {
+          throw new BadRequestException(`Inventory not found for SKU ${item.sku}`);
+        }
+
+        const activeReserved = await this.activeReservationQuantityForVariant(item.variant.id);
+        const available =
+          Number(inventory.quantity) - Number(inventory.reserved || 0) - activeReserved;
+        if (available < item.quantity) {
+          throw new BadRequestException(`Insufficient inventory for SKU ${item.sku}`);
+        }
+
+        await this.inventoryReservationsRepository.save(
+          this.inventoryReservationsRepository.create({
+            variant: item.variant,
+            quantity: item.quantity,
+            user,
+            sessionId,
+            status: InventoryReservationStatus.ACTIVE,
+            expiresAt: this.reservationExpiryDate(),
+            order,
+          }),
+        );
+
+        this.logger.log(
+          `[cid:${correlationId || 'none'}] Reserved ${item.quantity} unit(s) for variant #${item.variant.id} on order #${order.id}`,
+        );
+      });
+    }
+  }
+
+  private async commitReservationsForOrder(order: Order, correlationId?: string): Promise<void> {
+    await this.expireStaleReservations();
+
+    for (const item of order.items || []) {
+      await this.withVariantLock(item.variant.id, async () => {
+        const activeReservation = await this.inventoryReservationsRepository.findOne({
+          where: {
+            order,
+            status: InventoryReservationStatus.ACTIVE,
+            variant: item.variant,
+          },
+        });
+
+        if (!activeReservation) {
+          const committedReservation = await this.inventoryReservationsRepository.findOne({
+            where: {
+              order,
+              status: InventoryReservationStatus.COMMITTED,
+              variant: item.variant,
+            },
+          });
+
+          if (committedReservation) {
+            return;
+          }
+
+          throw new BadRequestException(`No active reservation found for SKU ${item.sku}`);
+        }
+
+        if (new Date(activeReservation.expiresAt) <= new Date()) {
+          activeReservation.status = InventoryReservationStatus.EXPIRED;
+          await this.inventoryReservationsRepository.save(activeReservation);
+          throw new BadRequestException(`Reservation expired for SKU ${item.sku}`);
+        }
+
+        const inventory = await this.inventoryRepository.findOne({
+          where: { variant: item.variant },
+        });
+        if (!inventory) {
+          throw new BadRequestException(`Inventory not found for SKU ${item.sku}`);
+        }
+
+        inventory.quantity = Number(inventory.quantity) - Number(activeReservation.quantity);
+        if (inventory.quantity < 0) {
+          throw new BadRequestException(`Insufficient inventory for SKU ${item.sku}`);
+        }
+        await this.inventoryRepository.save(inventory);
+
+        activeReservation.status = InventoryReservationStatus.COMMITTED;
+        await this.inventoryReservationsRepository.save(activeReservation);
+
+        this.logger.log(
+          `[cid:${correlationId || 'none'}] Committed reservation ${activeReservation.reservationId} for order #${order.id}`,
+        );
+      });
+    }
+  }
+
+  private async releaseReservationsForOrder(
+    order: Order,
+    reason: string,
+    correlationId?: string,
+  ): Promise<void> {
+    const activeReservations = await this.inventoryReservationsRepository.find({
+      where: { order, status: InventoryReservationStatus.ACTIVE },
+    });
+
+    for (const reservation of activeReservations) {
+      reservation.status = InventoryReservationStatus.RELEASED;
+      await this.inventoryReservationsRepository.save(reservation);
+      this.logger.log(
+        `[cid:${correlationId || 'none'}] Released reservation ${reservation.reservationId} (${reason})`,
+      );
+    }
   }
 
   private resolveIdempotencyScope(user?: User, sessionId?: string): string {
