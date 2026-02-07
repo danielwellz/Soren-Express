@@ -8,6 +8,7 @@
     "seed": "cd soren-back-end-origin && yarn seed",
     "docker:up": "docker compose up --build",
     "docker:down": "docker compose down",
-    "docker:reset": "docker compose down -v --remove-orphans"
+    "docker:reset": "docker compose down -v --remove-orphans",
+    "check:lockfiles": "bash ./scripts/check-lockfile-policy.sh"
   }
 }
