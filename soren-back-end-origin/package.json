@@ -54,6 +54,7 @@
     "graphql-type-json": "^0.3.2",
     "graphql-upload": "14",
     "graphql-yoga": "^3.9.1",
+    "helmet": "^8.1.0",
     "inquirer": "^9.2.3",
     "install": "^0.13.0",
     "mysql2": "^3.2.0",
