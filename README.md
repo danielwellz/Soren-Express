@@ -61,6 +61,13 @@ Notes:
 - In Docker/service networking, API uses `DB_HOST=db` automatically.
 - You do not need to manually edit `DB_HOST` for Docker.
 
+## Env setup
+- Root setup: `cp .env.example .env`
+- Backend setup: `cp soren-back-end-origin/.env.example soren-back-end-origin/.env.local`
+- Fill placeholders (`change_me_*`) before running local services.
+- Never commit `.env` or `.env.local`.
+- If this repository was ever public with real secrets, rotate all credentials and rewrite git history (for example with BFG Repo-Cleaner or `git filter-repo`).
+
 ## Quick start
 
 ### 1) Backend env
@@ -74,12 +81,12 @@ Required defaults in `.env.local`:
 PORT=3000
 DB_HOST=localhost
 DB_PORT=3306
-DB_USERNAME=soren
-DB_PASSWORD=soren_password
+DB_USERNAME=change_me_db_user
+DB_PASSWORD=change_me_db_password
 DB_DATABASE=soren_store
 DB_SYNCHRONIZE=true
-JWT_ACCESS_SECRET=dev-access-secret
-JWT_REFRESH_SECRET=dev-refresh-secret
+JWT_ACCESS_SECRET=change_me_jwt_access_secret
+JWT_REFRESH_SECRET=change_me_jwt_refresh_secret
 SMS_PROVIDER_ENABLED=false
 ```
 
