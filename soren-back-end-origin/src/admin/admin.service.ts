@@ -11,6 +11,7 @@ import {
   Brand,
   Category,
   Coupon,
+  AdminAuditLog,
   Inventory,
   Order,
   OrderStatusHistory,
@@ -22,6 +23,7 @@ import {
 } from 'src/entities';
 import { QueryFailedError, Repository } from 'typeorm';
 import { assertValidOrderTransition } from 'src/orders/order-state-machine';
+import { randomUUID } from 'crypto';
 import {
   CreateBrandInput,
   CreateCategoryInput,
@@ -66,6 +68,8 @@ export class AdminService {
     private readonly taxRulesRepository: Repository<TaxRule>,
     @InjectRepository(ShippingRule)
     private readonly shippingRulesRepository: Repository<ShippingRule>,
+    @InjectRepository(AdminAuditLog)
+    private readonly adminAuditLogRepository: Repository<AdminAuditLog>,
   ) {}
 
   private assertRequiredName(value: string, label: string): string {
@@ -83,15 +87,76 @@ export class AdminService {
     this.logger.error(`[${context}] ${describeDbQueryError(error)}`);
   }
 
-  async createCategory(input: CreateCategoryInput): Promise<Category> {
+  private snapshot(value: unknown): Record<string, unknown> | undefined {
+    if (!value) {
+      return undefined;
+    }
+
+    return JSON.parse(JSON.stringify(value));
+  }
+
+  private sanitizeAuditPayload(value: unknown): unknown {
+    if (Array.isArray(value)) {
+      return value.map((item) => this.sanitizeAuditPayload(item));
+    }
+
+    if (value && typeof value === 'object') {
+      return Object.entries(value as Record<string, unknown>).reduce((acc, [key, val]) => {
+        if (/password|secret|token/i.test(key)) {
+          acc[key] = '[REDACTED]';
+        } else {
+          acc[key] = this.sanitizeAuditPayload(val);
+        }
+        return acc;
+      }, {} as Record<string, unknown>);
+    }
+
+    return value;
+  }
+
+  private async logAdminAction(params: {
+    actorUserId?: number;
+    action: string;
+    entityType: string;
+    entityId?: string | number;
+    beforeState?: unknown;
+    afterState?: unknown;
+  }): Promise<void> {
+    if (!params.actorUserId) {
+      return;
+    }
+
+    const correlationId = randomUUID();
+    await this.adminAuditLogRepository.save(
+      this.adminAuditLogRepository.create({
+        actorUserId: params.actorUserId,
+        action: params.action,
+        entityType: params.entityType,
+        entityId: params.entityId !== undefined ? String(params.entityId) : undefined,
+        beforeState: this.sanitizeAuditPayload(params.beforeState) as Record<string, unknown>,
+        afterState: this.sanitizeAuditPayload(params.afterState) as Record<string, unknown>,
+        correlationId,
+      }),
+    );
+  }
+
+  async createCategory(input: CreateCategoryInput, actorUserId?: number): Promise<Category> {
     const name = this.assertRequiredName(input.name, 'Category name');
     try {
-      return this.categoriesRepository.save(
+      const created = await this.categoriesRepository.save(
         this.categoriesRepository.create({
           ...input,
           name,
         }),
       );
+      await this.logAdminAction({
+        actorUserId,
+        action: 'category.create',
+        entityType: 'Category',
+        entityId: created.id,
+        afterState: this.snapshot(created),
+      });
+      return created;
     } catch (error) {
       this.logQueryFailure('createCategory', error);
       throw error;
@@ -102,39 +167,65 @@ export class AdminService {
     return this.categoriesRepository.find({ order: { name: 'ASC' } });
   }
 
-  async updateCategory(input: UpdateCategoryInput): Promise<Category> {
+  async updateCategory(input: UpdateCategoryInput, actorUserId?: number): Promise<Category> {
     const category = await this.categoriesRepository.findOne(input.id);
     if (!category) {
       throw new NotFoundException('Category not found');
     }
+    const before = this.snapshot(category);
     category.name = this.assertRequiredName(input.name, 'Category name');
     category.description = input.description;
     try {
-      return this.categoriesRepository.save(category);
+      const updated = await this.categoriesRepository.save(category);
+      await this.logAdminAction({
+        actorUserId,
+        action: 'category.update',
+        entityType: 'Category',
+        entityId: updated.id,
+        beforeState: before,
+        afterState: this.snapshot(updated),
+      });
+      return updated;
     } catch (error) {
       this.logQueryFailure('updateCategory', error);
       throw error;
     }
   }
 
-  async deleteCategory(id: number): Promise<boolean> {
+  async deleteCategory(id: number, actorUserId?: number): Promise<boolean> {
     const category = await this.categoriesRepository.findOne(id);
     if (!category) {
       return false;
     }
+    const before = this.snapshot(category);
     await this.categoriesRepository.remove(category);
+    await this.logAdminAction({
+      actorUserId,
+      action: 'category.delete',
+      entityType: 'Category',
+      entityId: id,
+      beforeState: before,
+    });
     return true;
   }
 
-  async createBrand(input: CreateBrandInput): Promise<Brand> {
+  async createBrand(input: CreateBrandInput, actorUserId?: number): Promise<Brand> {
     const name = this.assertRequiredName(input.name, 'Brand name');
     try {
-      return this.brandsRepository.save(
+      const created = await this.brandsRepository.save(
         this.brandsRepository.create({
           ...input,
           name,
         }),
       );
+      await this.logAdminAction({
+        actorUserId,
+        action: 'brand.create',
+        entityType: 'Brand',
+        entityId: created.id,
+        afterState: this.snapshot(created),
+      });
+      return created;
     } catch (error) {
       this.logQueryFailure('createBrand', error);
       throw error;
@@ -145,31 +236,49 @@ export class AdminService {
     return this.brandsRepository.find({ order: { name: 'ASC' } });
   }
 
-  async updateBrand(input: UpdateBrandInput): Promise<Brand> {
+  async updateBrand(input: UpdateBrandInput, actorUserId?: number): Promise<Brand> {
     const brand = await this.brandsRepository.findOne(input.id);
     if (!brand) {
       throw new NotFoundException('Brand not found');
     }
+    const before = this.snapshot(brand);
     brand.name = this.assertRequiredName(input.name, 'Brand name');
     brand.description = input.description;
     try {
-      return this.brandsRepository.save(brand);
+      const updated = await this.brandsRepository.save(brand);
+      await this.logAdminAction({
+        actorUserId,
+        action: 'brand.update',
+        entityType: 'Brand',
+        entityId: updated.id,
+        beforeState: before,
+        afterState: this.snapshot(updated),
+      });
+      return updated;
     } catch (error) {
       this.logQueryFailure('updateBrand', error);
       throw error;
     }
   }
 
-  async deleteBrand(id: number): Promise<boolean> {
+  async deleteBrand(id: number, actorUserId?: number): Promise<boolean> {
     const brand = await this.brandsRepository.findOne(id);
     if (!brand) {
       return false;
     }
+    const before = this.snapshot(brand);
     await this.brandsRepository.remove(brand);
+    await this.logAdminAction({
+      actorUserId,
+      action: 'brand.delete',
+      entityType: 'Brand',
+      entityId: id,
+      beforeState: before,
+    });
     return true;
   }
 
-  async createProduct(input: CreateProductInput): Promise<Product> {
+  async createProduct(input: CreateProductInput, actorUserId?: number): Promise<Product> {
     const category = await this.categoriesRepository.findOne(input.categoryId);
     const brand = await this.brandsRepository.findOne(input.brandId);
 
@@ -180,7 +289,7 @@ export class AdminService {
     const name = this.assertRequiredName(input.name, 'Product name');
 
     try {
-      return this.productsRepository.save(
+      const created = await this.productsRepository.save(
         this.productsRepository.create({
           ...input,
           name,
@@ -188,19 +297,28 @@ export class AdminService {
           brand,
         }),
       );
+      await this.logAdminAction({
+        actorUserId,
+        action: 'product.create',
+        entityType: 'Product',
+        entityId: created.id,
+        afterState: this.snapshot(created),
+      });
+      return created;
     } catch (error) {
       this.logQueryFailure('createProduct', error);
       throw error;
     }
   }
 
-  async updateProduct(input: UpdateProductInput): Promise<Product> {
+  async updateProduct(input: UpdateProductInput, actorUserId?: number): Promise<Product> {
     const product = await this.productsRepository.findOne(input.id, {
       relations: ['category', 'brand'],
     });
     if (!product) {
       throw new NotFoundException('Product not found');
     }
+    const before = this.snapshot(product);
 
     const category = await this.categoriesRepository.findOne(input.categoryId);
     const brand = await this.brandsRepository.findOne(input.brandId);
@@ -223,23 +341,40 @@ export class AdminService {
     });
 
     try {
-      return this.productsRepository.save(product);
+      const updated = await this.productsRepository.save(product);
+      await this.logAdminAction({
+        actorUserId,
+        action: 'product.update',
+        entityType: 'Product',
+        entityId: updated.id,
+        beforeState: before,
+        afterState: this.snapshot(updated),
+      });
+      return updated;
     } catch (error) {
       this.logQueryFailure('updateProduct', error);
       throw error;
     }
   }
 
-  async deleteProduct(id: number): Promise<boolean> {
+  async deleteProduct(id: number, actorUserId?: number): Promise<boolean> {
     const product = await this.productsRepository.findOne(id);
     if (!product) {
       return false;
     }
+    const before = this.snapshot(product);
     await this.productsRepository.remove(product);
+    await this.logAdminAction({
+      actorUserId,
+      action: 'product.delete',
+      entityType: 'Product',
+      entityId: id,
+      beforeState: before,
+    });
     return true;
   }
 
-  async createVariant(input: CreateVariantInput): Promise<ProductVariant> {
+  async createVariant(input: CreateVariantInput, actorUserId?: number): Promise<ProductVariant> {
     const product = await this.productsRepository.findOne(input.productId);
     if (!product) {
       throw new NotFoundException('Product not found');
@@ -262,12 +397,21 @@ export class AdminService {
       }),
     );
 
-    return this.variantsRepository.findOne(variant.id, {
+    const created = await this.variantsRepository.findOne(variant.id, {
       relations: ['product', 'inventory'],
     });
+    await this.logAdminAction({
+      actorUserId,
+      action: 'variant.create',
+      entityType: 'ProductVariant',
+      entityId: created?.id,
+      afterState: this.snapshot(created),
+    });
+
+    return created;
   }
 
-  async updateInventory(input: UpdateInventoryInput): Promise<Inventory> {
+  async updateInventory(input: UpdateInventoryInput, actorUserId?: number): Promise<Inventory> {
     const variant = await this.variantsRepository.findOne(input.variantId, {
       relations: ['inventory'],
     });
@@ -283,33 +427,52 @@ export class AdminService {
         quantity: 0,
       });
     }
+    const before = this.snapshot(inventory);
 
     inventory.quantity = input.quantity;
     if (input.lowStockThreshold !== undefined) {
       inventory.lowStockThreshold = input.lowStockThreshold;
     }
 
-    return this.inventoryRepository.save(inventory);
+    const updated = await this.inventoryRepository.save(inventory);
+    await this.logAdminAction({
+      actorUserId,
+      action: 'inventory.update',
+      entityType: 'Inventory',
+      entityId: updated.id,
+      beforeState: before,
+      afterState: this.snapshot(updated),
+    });
+    return updated;
   }
 
-  async createCoupon(input: CreateCouponInput): Promise<Coupon> {
-    return this.couponsRepository.save(
+  async createCoupon(input: CreateCouponInput, actorUserId?: number): Promise<Coupon> {
+    const created = await this.couponsRepository.save(
       this.couponsRepository.create({
         ...input,
         code: input.code.toUpperCase(),
       }),
     );
+    await this.logAdminAction({
+      actorUserId,
+      action: 'coupon.create',
+      entityType: 'Coupon',
+      entityId: created.id,
+      afterState: this.snapshot(created),
+    });
+    return created;
   }
 
   async coupons(): Promise<Coupon[]> {
     return this.couponsRepository.find({ order: { createdAt: 'DESC' } });
   }
 
-  async updateCoupon(input: UpdateCouponInput): Promise<Coupon> {
+  async updateCoupon(input: UpdateCouponInput, actorUserId?: number): Promise<Coupon> {
     const coupon = await this.couponsRepository.findOne(input.id);
     if (!coupon) {
       throw new NotFoundException('Coupon not found');
     }
+    const before = this.snapshot(coupon);
     Object.assign(coupon, {
       code: input.code.toUpperCase(),
       type: input.type,
@@ -318,15 +481,32 @@ export class AdminService {
       active: input.active,
       expiresAt: input.expiresAt,
     });
-    return this.couponsRepository.save(coupon);
+    const updated = await this.couponsRepository.save(coupon);
+    await this.logAdminAction({
+      actorUserId,
+      action: 'coupon.update',
+      entityType: 'Coupon',
+      entityId: updated.id,
+      beforeState: before,
+      afterState: this.snapshot(updated),
+    });
+    return updated;
   }
 
-  async deleteCoupon(id: number): Promise<boolean> {
+  async deleteCoupon(id: number, actorUserId?: number): Promise<boolean> {
     const coupon = await this.couponsRepository.findOne(id);
     if (!coupon) {
       return false;
     }
+    const before = this.snapshot(coupon);
     await this.couponsRepository.remove(coupon);
+    await this.logAdminAction({
+      actorUserId,
+      action: 'coupon.delete',
+      entityType: 'Coupon',
+      entityId: id,
+      beforeState: before,
+    });
     return true;
   }
 
@@ -334,30 +514,58 @@ export class AdminService {
     return this.usersRepository.find({ order: { createdAt: 'DESC' } });
   }
 
-  async updateUserRole(input: UpdateUserRoleInput): Promise<User> {
+  async updateUserRole(input: UpdateUserRoleInput, actorUserId?: number): Promise<User> {
     const user = await this.usersRepository.findOne(input.userId);
     if (!user) {
       throw new NotFoundException('User not found');
     }
+    const before = this.snapshot(user);
     user.role = input.role;
-    return this.usersRepository.save(user);
+    const updated = await this.usersRepository.save(user);
+    await this.logAdminAction({
+      actorUserId,
+      action: 'user.role.update',
+      entityType: 'User',
+      entityId: updated.id,
+      beforeState: before,
+      afterState: this.snapshot(updated),
+    });
+    return updated;
   }
 
-  async updateUserStatus(input: UpdateUserStatusInput): Promise<User> {
+  async updateUserStatus(input: UpdateUserStatusInput, actorUserId?: number): Promise<User> {
     const user = await this.usersRepository.findOne(input.userId);
     if (!user) {
       throw new NotFoundException('User not found');
     }
+    const before = this.snapshot(user);
     user.active = input.active;
-    return this.usersRepository.save(user);
+    const updated = await this.usersRepository.save(user);
+    await this.logAdminAction({
+      actorUserId,
+      action: 'user.status.update',
+      entityType: 'User',
+      entityId: updated.id,
+      beforeState: before,
+      afterState: this.snapshot(updated),
+    });
+    return updated;
   }
 
-  async deleteUser(id: number): Promise<boolean> {
+  async deleteUser(id: number, actorUserId?: number): Promise<boolean> {
     const user = await this.usersRepository.findOne(id);
     if (!user) {
       return false;
     }
+    const before = this.snapshot(user);
     await this.usersRepository.remove(user);
+    await this.logAdminAction({
+      actorUserId,
+      action: 'user.delete',
+      entityType: 'User',
+      entityId: id,
+      beforeState: before,
+    });
     return true;
   }
 
@@ -375,13 +583,14 @@ export class AdminService {
     });
   }
 
-  async updateOrderStatus(input: UpdateOrderStatusInput): Promise<Order> {
+  async updateOrderStatus(input: UpdateOrderStatusInput, actorUserId?: number): Promise<Order> {
     const order = await this.ordersRepository.findOne(input.orderId, {
       relations: ['shipment', 'payment', 'items', 'coupon', 'user'],
     });
     if (!order) {
       throw new NotFoundException('Order not found');
     }
+    const before = this.snapshot(order);
 
     assertValidOrderTransition(order.status, input.status);
     order.status = input.status;
@@ -398,27 +607,56 @@ export class AdminService {
       }),
     );
 
-    return this.ordersRepository.save(order);
+    const updated = await this.ordersRepository.save(order);
+    await this.logAdminAction({
+      actorUserId,
+      action: 'order.status.update',
+      entityType: 'Order',
+      entityId: updated.id,
+      beforeState: before,
+      afterState: this.snapshot(updated),
+    });
+    return updated;
   }
 
-  async upsertTaxRule(input: UpsertTaxRuleInput): Promise<TaxRule> {
+  async upsertTaxRule(input: UpsertTaxRuleInput, actorUserId?: number): Promise<TaxRule> {
     let rule = await this.taxRulesRepository.findOne({ where: { region: input.region } });
+    const before = this.snapshot(rule);
     if (!rule) {
       rule = this.taxRulesRepository.create(input);
     } else {
       Object.assign(rule, input);
     }
-    return this.taxRulesRepository.save(rule);
+    const saved = await this.taxRulesRepository.save(rule);
+    await this.logAdminAction({
+      actorUserId,
+      action: 'taxRule.upsert',
+      entityType: 'TaxRule',
+      entityId: saved.id,
+      beforeState: before,
+      afterState: this.snapshot(saved),
+    });
+    return saved;
   }
 
-  async upsertShippingRule(input: UpsertShippingRuleInput): Promise<ShippingRule> {
+  async upsertShippingRule(input: UpsertShippingRuleInput, actorUserId?: number): Promise<ShippingRule> {
     let rule = await this.shippingRulesRepository.findOne({ where: { region: input.region } });
+    const before = this.snapshot(rule);
     if (!rule) {
       rule = this.shippingRulesRepository.create(input);
     } else {
       Object.assign(rule, input);
     }
-    return this.shippingRulesRepository.save(rule);
+    const saved = await this.shippingRulesRepository.save(rule);
+    await this.logAdminAction({
+      actorUserId,
+      action: 'shippingRule.upsert',
+      entityType: 'ShippingRule',
+      entityId: saved.id,
+      beforeState: before,
+      afterState: this.snapshot(saved),
+    });
+    return saved;
   }
 
   async taxRules(): Promise<TaxRule[]> {

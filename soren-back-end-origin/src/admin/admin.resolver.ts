@@ -1,5 +1,6 @@
 import { UseGuards } from '@nestjs/common';
 import { Args, Int, Mutation, Query, Resolver } from '@nestjs/graphql';
+import { CurrentUser } from 'src/auth/current-user.decorator';
 import { Roles } from 'src/auth/roles.decorator';
 import { GqlAuthGuard } from 'src/auth/gql-auth.guard';
 import { RolesGuard } from 'src/auth/roles.guard';
@@ -47,105 +48,163 @@ export class AdminResolver {
   ) {}
 
   @Mutation(() => Category)
-  async adminCreateCategory(@Args('input') input: CreateCategoryInput): Promise<Category> {
-    return this.adminService.createCategory(input);
+  async adminCreateCategory(
+    @Args('input') input: CreateCategoryInput,
+    @CurrentUser() actor: User,
+  ): Promise<Category> {
+    return this.adminService.createCategory(input, actor.id);
   }
 
   @Mutation(() => Category)
-  async adminUpdateCategory(@Args('input') input: UpdateCategoryInput): Promise<Category> {
-    return this.adminService.updateCategory(input);
+  async adminUpdateCategory(
+    @Args('input') input: UpdateCategoryInput,
+    @CurrentUser() actor: User,
+  ): Promise<Category> {
+    return this.adminService.updateCategory(input, actor.id);
   }
 
   @Mutation(() => Boolean)
-  async adminDeleteCategory(@Args('id', { type: () => Int }) id: number): Promise<boolean> {
-    return this.adminService.deleteCategory(id);
+  async adminDeleteCategory(
+    @Args('id', { type: () => Int }) id: number,
+    @CurrentUser() actor: User,
+  ): Promise<boolean> {
+    return this.adminService.deleteCategory(id, actor.id);
   }
 
   @Mutation(() => Brand)
-  async adminCreateBrand(@Args('input') input: CreateBrandInput): Promise<Brand> {
-    return this.adminService.createBrand(input);
+  async adminCreateBrand(
+    @Args('input') input: CreateBrandInput,
+    @CurrentUser() actor: User,
+  ): Promise<Brand> {
+    return this.adminService.createBrand(input, actor.id);
   }
 
   @Mutation(() => Brand)
-  async adminUpdateBrand(@Args('input') input: UpdateBrandInput): Promise<Brand> {
-    return this.adminService.updateBrand(input);
+  async adminUpdateBrand(
+    @Args('input') input: UpdateBrandInput,
+    @CurrentUser() actor: User,
+  ): Promise<Brand> {
+    return this.adminService.updateBrand(input, actor.id);
   }
 
   @Mutation(() => Boolean)
-  async adminDeleteBrand(@Args('id', { type: () => Int }) id: number): Promise<boolean> {
-    return this.adminService.deleteBrand(id);
+  async adminDeleteBrand(
+    @Args('id', { type: () => Int }) id: number,
+    @CurrentUser() actor: User,
+  ): Promise<boolean> {
+    return this.adminService.deleteBrand(id, actor.id);
   }
 
   @Mutation(() => Product)
-  async adminCreateProduct(@Args('input') input: CreateProductInput): Promise<Product> {
-    return this.adminService.createProduct(input);
+  async adminCreateProduct(
+    @Args('input') input: CreateProductInput,
+    @CurrentUser() actor: User,
+  ): Promise<Product> {
+    return this.adminService.createProduct(input, actor.id);
   }
 
   @Mutation(() => Product)
-  async adminUpdateProduct(@Args('input') input: UpdateProductInput): Promise<Product> {
-    return this.adminService.updateProduct(input);
+  async adminUpdateProduct(
+    @Args('input') input: UpdateProductInput,
+    @CurrentUser() actor: User,
+  ): Promise<Product> {
+    return this.adminService.updateProduct(input, actor.id);
   }
 
   @Mutation(() => Boolean)
-  async adminDeleteProduct(@Args('id', { type: () => Int }) id: number): Promise<boolean> {
-    return this.adminService.deleteProduct(id);
+  async adminDeleteProduct(
+    @Args('id', { type: () => Int }) id: number,
+    @CurrentUser() actor: User,
+  ): Promise<boolean> {
+    return this.adminService.deleteProduct(id, actor.id);
   }
 
   @Mutation(() => ProductVariant)
-  async adminCreateVariant(@Args('input') input: CreateVariantInput): Promise<ProductVariant> {
-    return this.adminService.createVariant(input);
+  async adminCreateVariant(
+    @Args('input') input: CreateVariantInput,
+    @CurrentUser() actor: User,
+  ): Promise<ProductVariant> {
+    return this.adminService.createVariant(input, actor.id);
   }
 
   @Mutation(() => Inventory)
-  async adminUpdateInventory(@Args('input') input: UpdateInventoryInput): Promise<Inventory> {
-    return this.adminService.updateInventory(input);
+  async adminUpdateInventory(
+    @Args('input') input: UpdateInventoryInput,
+    @CurrentUser() actor: User,
+  ): Promise<Inventory> {
+    return this.adminService.updateInventory(input, actor.id);
   }
 
   @Mutation(() => Coupon)
-  async adminCreateCoupon(@Args('input') input: CreateCouponInput): Promise<Coupon> {
-    return this.adminService.createCoupon(input);
+  async adminCreateCoupon(
+    @Args('input') input: CreateCouponInput,
+    @CurrentUser() actor: User,
+  ): Promise<Coupon> {
+    return this.adminService.createCoupon(input, actor.id);
   }
 
   @Mutation(() => Coupon)
-  async adminUpdateCoupon(@Args('input') input: UpdateCouponInput): Promise<Coupon> {
-    return this.adminService.updateCoupon(input);
+  async adminUpdateCoupon(
+    @Args('input') input: UpdateCouponInput,
+    @CurrentUser() actor: User,
+  ): Promise<Coupon> {
+    return this.adminService.updateCoupon(input, actor.id);
   }
 
   @Mutation(() => Boolean)
-  async adminDeleteCoupon(@Args('id', { type: () => Int }) id: number): Promise<boolean> {
-    return this.adminService.deleteCoupon(id);
+  async adminDeleteCoupon(
+    @Args('id', { type: () => Int }) id: number,
+    @CurrentUser() actor: User,
+  ): Promise<boolean> {
+    return this.adminService.deleteCoupon(id, actor.id);
   }
 
   @Mutation(() => User)
-  async adminUpdateUserRole(@Args('input') input: UpdateUserRoleInput): Promise<User> {
-    return this.adminService.updateUserRole(input);
+  async adminUpdateUserRole(
+    @Args('input') input: UpdateUserRoleInput,
+    @CurrentUser() actor: User,
+  ): Promise<User> {
+    return this.adminService.updateUserRole(input, actor.id);
   }
 
   @Mutation(() => User)
-  async adminUpdateUserStatus(@Args('input') input: UpdateUserStatusInput): Promise<User> {
-    return this.adminService.updateUserStatus(input);
+  async adminUpdateUserStatus(
+    @Args('input') input: UpdateUserStatusInput,
+    @CurrentUser() actor: User,
+  ): Promise<User> {
+    return this.adminService.updateUserStatus(input, actor.id);
   }
 
   @Mutation(() => Boolean)
-  async adminDeleteUser(@Args('id', { type: () => Int }) id: number): Promise<boolean> {
-    return this.adminService.deleteUser(id);
+  async adminDeleteUser(
+    @Args('id', { type: () => Int }) id: number,
+    @CurrentUser() actor: User,
+  ): Promise<boolean> {
+    return this.adminService.deleteUser(id, actor.id);
   }
 
   @Mutation(() => Order)
-  async adminUpdateOrderStatus(@Args('input') input: UpdateOrderStatusInput): Promise<Order> {
-    return this.adminService.updateOrderStatus(input);
+  async adminUpdateOrderStatus(
+    @Args('input') input: UpdateOrderStatusInput,
+    @CurrentUser() actor: User,
+  ): Promise<Order> {
+    return this.adminService.updateOrderStatus(input, actor.id);
   }
 
   @Mutation(() => TaxRule)
-  async adminUpsertTaxRule(@Args('input') input: UpsertTaxRuleInput): Promise<TaxRule> {
-    return this.adminService.upsertTaxRule(input);
+  async adminUpsertTaxRule(
+    @Args('input') input: UpsertTaxRuleInput,
+    @CurrentUser() actor: User,
+  ): Promise<TaxRule> {
+    return this.adminService.upsertTaxRule(input, actor.id);
   }
 
   @Mutation(() => ShippingRule)
   async adminUpsertShippingRule(
     @Args('input') input: UpsertShippingRuleInput,
+    @CurrentUser() actor: User,
   ): Promise<ShippingRule> {
-    return this.adminService.upsertShippingRule(input);
+    return this.adminService.upsertShippingRule(input, actor.id);
   }
 
   @Query(() => [Category])
