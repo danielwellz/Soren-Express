@@ -1,4 +1,6 @@
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import FavoriteBorderRoundedIcon from '@mui/icons-material/FavoriteBorderRounded';
+import FavoriteRoundedIcon from '@mui/icons-material/FavoriteRounded';
 import {
   Box,
   Button,
@@ -7,12 +9,19 @@ import {
   CardContent,
   CardMedia,
   Chip,
+  IconButton,
   Rating,
   Typography,
 } from '@mui/material';
-import { motion } from 'framer-motion';
+import { alpha } from '@mui/material/styles';
+import { motion, useReducedMotion } from 'framer-motion';
 import React, { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link as RouterLink } from 'react-router-dom';
+import { useAnalytics } from '../../context/AnalyticsContext';
+import { useWishlist } from '../../context/WishlistContext';
+import { useLocaleFormatters } from '../../hooks/useLocaleFormatters';
+import { emitOpenMiniCart } from '../../lib/cartDrawerEvents';
 
 type ProductCardProps = {
   product: {
@@ -23,6 +32,7 @@ type ProductCardProps = {
     averageRating?: number;
     brand?: { name: string };
     variants?: Array<{
+      id?: number;
       inventory?: { quantity: number; reserved: number };
     }>;
   };
@@ -44,6 +54,11 @@ function productInStock(product: ProductCardProps['product']): boolean {
 }
 
 export function ProductCard({ product, onAdd }: ProductCardProps) {
+  const { t } = useTranslation();
+  const { trackEvent } = useAnalytics();
+  const { toggleWishlist, hasInWishlist } = useWishlist();
+  const { formatCurrency } = useLocaleFormatters();
+  const reducedMotion = useReducedMotion();
   const inStock = productInStock(product);
   const [isAdding, setIsAdding] = useState(false);
   const [justAdded, setJustAdded] = useState(false);
@@ -56,6 +71,27 @@ export function ProductCard({ product, onAdd }: ProductCardProps) {
       }
     };
   }, []);
+
+  const inWishlist = hasInWishlist(Number(product.id));
+
+  const toggleWishlistAction = () => {
+    const normalizedVariants =
+      product.variants?.map((variant, index) => ({
+        id: Number(variant.id ?? index + 1),
+        inventory: variant.inventory,
+      })) || [];
+
+    toggleWishlist({
+      id: Number(product.id),
+      name: String(product.name || ''),
+      basePrice: Number(product.basePrice || 0),
+      thumbnail: product.thumbnail,
+      averageRating: Number(product.averageRating || 0),
+      brand: product.brand,
+      category: undefined,
+      variants: normalizedVariants.length ? normalizedVariants : undefined,
+    });
+  };
 
   const handleAdd = async () => {
     if (!onAdd || isAdding) {
@@ -77,6 +113,12 @@ export function ProductCard({ product, onAdd }: ProductCardProps) {
       return;
     }
 
+    emitOpenMiniCart();
+    void trackEvent('add_to_cart', {
+      productId: product.id,
+      productName: product.name,
+      price: Number(product.basePrice || 0),
+    });
     setJustAdded(true);
     if (addedTimer.current) {
       window.clearTimeout(addedTimer.current);
@@ -89,8 +131,8 @@ export function ProductCard({ product, onAdd }: ProductCardProps) {
   return (
     <Box
       component={motion.div}
-      whileHover={{ y: -4 }}
-      transition={{ duration: 0.22, ease: 'easeOut' }}
+      whileHover={reducedMotion ? undefined : { y: -4 }}
+      transition={{ duration: reducedMotion ? 0.01 : 0.22, ease: 'easeOut' }}
       sx={{ height: '100%' }}
     >
       <Card
@@ -101,10 +143,10 @@ export function ProductCard({ product, onAdd }: ProductCardProps) {
           overflow: 'hidden',
           border: '1px solid',
           borderColor: 'divider',
-          transition: 'box-shadow 220ms ease, border-color 220ms ease',
+          transition: reducedMotion ? 'none' : 'box-shadow 220ms ease, border-color 220ms ease',
           '&:hover': {
             borderColor: 'primary.light',
-            boxShadow: '0 16px 30px rgba(11, 36, 71, 0.12)',
+            boxShadow: (theme) => `0 16px 30px ${alpha(theme.palette.primary.dark, 0.18)}`,
           },
         }}
       >
@@ -114,7 +156,7 @@ export function ProductCard({ product, onAdd }: ProductCardProps) {
           sx={{ display: 'block', position: 'relative', overflow: 'hidden' }}
         >
           <Chip
-            label={inStock ? 'In Stock' : 'Sold Out'}
+            label={inStock ? t('productCard.inStock') : t('productCard.soldOut')}
             size="small"
             color={inStock ? 'success' : 'default'}
             sx={{ position: 'absolute', top: 12, left: 12, zIndex: 1 }}
@@ -127,16 +169,16 @@ export function ProductCard({ product, onAdd }: ProductCardProps) {
               height: 220,
               objectFit: 'cover',
               backgroundColor: 'action.hover',
-              transition: 'transform 260ms ease',
+              transition: reducedMotion ? 'none' : 'transform 260ms ease',
               '.MuiCard-root:hover &': {
-                transform: 'scale(1.04)',
+                transform: reducedMotion ? 'none' : 'scale(1.04)',
               },
             }}
           />
         </Box>
         <CardContent sx={{ flexGrow: 1, pb: 1 }}>
           <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
-            {product.brand?.name || 'Brand'}
+            {product.brand?.name || t('productCard.brandFallback')}
           </Typography>
           <Typography
             component={RouterLink}
@@ -163,13 +205,23 @@ export function ProductCard({ product, onAdd }: ProductCardProps) {
             </Typography>
           </Box>
           <Typography variant="h6" sx={{ mt: 1.5 }}>
-            ${Number(product.basePrice).toFixed(2)}
+            {formatCurrency(Number(product.basePrice || 0))}
           </Typography>
         </CardContent>
         <CardActions sx={{ justifyContent: 'space-between', px: 2, pb: 2.3 }}>
-          <Typography variant="caption" color="text.secondary">
-            {inStock ? 'Ready to ship' : 'Currently unavailable'}
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.6 }}>
+            <Typography variant="caption" color="text.secondary">
+              {inStock ? t('productCard.readyToShip') : t('productCard.unavailable')}
+            </Typography>
+            <IconButton
+              size="small"
+              color={inWishlist ? 'secondary' : 'default'}
+              aria-label={inWishlist ? t('wishlist.remove') : t('wishlist.add')}
+              onClick={toggleWishlistAction}
+            >
+              {inWishlist ? <FavoriteRoundedIcon fontSize="small" /> : <FavoriteBorderRoundedIcon fontSize="small" />}
+            </IconButton>
+          </Box>
           <Button
             variant="contained"
             size="small"
@@ -177,11 +229,11 @@ export function ProductCard({ product, onAdd }: ProductCardProps) {
             onClick={() => {
               void handleAdd();
             }}
-            aria-label={`Add ${product.name} to cart`}
+            aria-label={t('productCard.addAria', { name: product.name })}
             data-testid={`add-to-cart-button-${product.id}`}
             startIcon={justAdded ? <CheckCircleOutlineIcon fontSize="small" /> : undefined}
           >
-            {isAdding ? 'Adding...' : justAdded ? 'Added' : 'Add'}
+            {isAdding ? t('productCard.adding') : justAdded ? t('productCard.added') : t('productCard.add')}
           </Button>
         </CardActions>
       </Card>

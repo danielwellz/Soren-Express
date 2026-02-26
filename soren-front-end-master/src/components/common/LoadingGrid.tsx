@@ -1,8 +1,10 @@
 import { Grid, Skeleton, Stack } from '@mui/material';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import React from 'react';
 
 export function LoadingGrid({ count = 8 }: { count?: number }) {
+  const reducedMotion = useReducedMotion();
+
   return (
     <Grid container spacing={2}>
       {Array.from({ length: count }).map((_, index) => (
@@ -10,9 +12,13 @@ export function LoadingGrid({ count = 8 }: { count?: number }) {
           <Stack
             component={motion.div}
             spacing={1.2}
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, delay: index * 0.035, ease: 'easeOut' }}
+            initial={reducedMotion ? { opacity: 0 } : { opacity: 0, y: 12 }}
+            animate={reducedMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
+            transition={{
+              duration: reducedMotion ? 0.01 : 0.3,
+              delay: reducedMotion ? 0 : index * 0.035,
+              ease: 'easeOut',
+            }}
           >
             <Skeleton variant="rounded" height={220} />
             <Skeleton variant="text" width="80%" />

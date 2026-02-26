@@ -48,3 +48,27 @@ export class ConfirmPaymentPayload {
   @Field(() => Payment)
   payment: Payment;
 }
+
+@ObjectType()
+export class ShippingEstimate {
+  @Field()
+  region: string;
+
+  @Field(() => Float)
+  flatRate: number;
+
+  @Field(() => Float)
+  freeShippingOver: number;
+
+  @Field(() => Float)
+  remainingForFreeShipping: number;
+
+  @Field()
+  eligibleForFreeShipping: boolean;
+
+  @Field()
+  estimatedMinDays: number;
+
+  @Field()
+  estimatedMaxDays: number;
+}

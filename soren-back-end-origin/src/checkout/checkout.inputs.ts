@@ -1,5 +1,5 @@
 import { Field, InputType, Int } from '@nestjs/graphql';
-import { IsInt, IsOptional, IsString, Min } from 'class-validator';
+import { IsInt, IsNumber, IsOptional, IsString } from 'class-validator';
 
 @InputType()
 export class CheckoutTotalsInput {
@@ -20,6 +20,11 @@ export class CheckoutTotalsInput {
 
 @InputType()
 export class CreateOrderInput {
+  @Field(() => Int, { nullable: true })
+  @IsOptional()
+  @IsInt()
+  savedAddressId?: number;
+
   @Field()
   @IsString()
   shippingName: string;
@@ -49,6 +54,14 @@ export class CreateOrderInput {
   @IsOptional()
   @IsString()
   sessionId?: string;
+
+  @Field({ defaultValue: false })
+  @IsOptional()
+  saveAddress?: boolean;
+
+  @Field({ defaultValue: true })
+  @IsOptional()
+  saveCheckoutProfile?: boolean;
 }
 
 @InputType()
@@ -67,4 +80,25 @@ export class ConfirmPaymentInput {
   @Field({ defaultValue: '4242' })
   @IsString()
   cardLast4: string;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsString()
+  cardholderName?: string;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsString()
+  cardExpiry?: string;
+}
+
+@InputType()
+export class ShippingEstimateInput {
+  @Field()
+  @IsString()
+  region: string;
+
+  @Field()
+  @IsNumber()
+  subtotal: number;
 }

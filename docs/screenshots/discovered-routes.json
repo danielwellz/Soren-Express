@@ -1,0 +1,33 @@
+{
+  "timestamp": "2026-02-07T22:23:16.509Z",
+  "discoveredByUi": [
+    "/",
+    "/products",
+    "/wishlist",
+    "/compare",
+    "/account",
+    "/auth/login",
+    "/auth/register",
+    "/admin",
+    "/products?category=1",
+    "/products/101",
+    "/products/102",
+    "/cart"
+  ],
+  "discoveredByCode": [
+    "/",
+    "/products",
+    "/products/101",
+    "/cart",
+    "/checkout",
+    "/auth/login",
+    "/auth/register",
+    "/auth/forgot-password",
+    "/account",
+    "/account/orders/900",
+    "/wishlist",
+    "/compare",
+    "/admin",
+    "/definitely-missing"
+  ]
+}

@@ -1,7 +1,7 @@
 import { CacheProvider } from '@emotion/react';
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import i18n, { AppLanguage, getStoredLanguage, LANGUAGE_STORAGE_KEY, sanitizeLanguage } from '../i18n';
+import i18n, { AppLanguage, getStoredLanguage, LANGUAGE_STORAGE_KEY } from '../i18n';
 import { ltrCache, rtlCache } from '../lib/emotionCache';
 
 type TextDirection = 'ltr' | 'rtl';
@@ -23,13 +23,6 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
   const [language, setLanguageState] = useState<AppLanguage>(getStoredLanguage);
 
   useTranslation();
-
-  useEffect(() => {
-    const resolved = sanitizeLanguage(i18n.language);
-    if (resolved !== language) {
-      setLanguageState(resolved);
-    }
-  }, [language]);
 
   useEffect(() => {
     void i18n.changeLanguage(language);

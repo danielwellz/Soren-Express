@@ -27,6 +27,8 @@ describe('Routing integration', () => {
                 id: 1,
                 sessionId,
                 active: true,
+                promoCode: null,
+                giftCardCode: null,
                 items: [],
               },
             },

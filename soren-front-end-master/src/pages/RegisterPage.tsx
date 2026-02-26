@@ -1,9 +1,11 @@
 import { Alert, Box, Button, Card, CardContent, Container, Stack, TextField, Typography } from '@mui/material';
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 export function RegisterPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { register } = useAuth();
 
@@ -25,7 +27,7 @@ export function RegisterPage() {
       await register(form);
       navigate('/account', { replace: true });
     } catch (submitError: any) {
-      setError(submitError.message || 'Unable to register');
+      setError(submitError.message || t('auth.errors.register'));
     } finally {
       setSubmitting(false);
     }
@@ -36,10 +38,10 @@ export function RegisterPage() {
       <Card className="surface-glass">
         <CardContent>
           <Typography variant="h4" sx={{ mb: 1 }}>
-            Create account
+            {t('auth.createAccount')}
           </Typography>
           <Typography color="text.secondary" sx={{ mb: 3 }}>
-            Get order tracking and faster checkout.
+            {t('auth.registerSubtitle')}
           </Typography>
 
           {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
@@ -47,38 +49,38 @@ export function RegisterPage() {
           <Box component="form" onSubmit={onSubmit}>
             <Stack spacing={2}>
               <TextField
-                label="Full name"
+                label={t('auth.fullName')}
                 value={form.fullName}
                 onChange={(event) => setForm((old) => ({ ...old, fullName: event.target.value }))}
                 required
               />
               <TextField
-                label="Email"
+                label={t('auth.email')}
                 type="email"
                 value={form.email}
                 onChange={(event) => setForm((old) => ({ ...old, email: event.target.value }))}
                 required
               />
               <TextField
-                label="Phone"
+                label={t('auth.phone')}
                 value={form.phone}
                 onChange={(event) => setForm((old) => ({ ...old, phone: event.target.value }))}
               />
               <TextField
-                label="Password"
+                label={t('auth.password')}
                 type="password"
-                helperText="At least 8 characters"
+                helperText={t('auth.passwordHint')}
                 value={form.password}
                 onChange={(event) => setForm((old) => ({ ...old, password: event.target.value }))}
                 required
               />
 
               <Button type="submit" variant="contained" size="large" disabled={submitting}>
-                {submitting ? 'Creating account...' : 'Register'}
+                {submitting ? t('auth.registering') : t('auth.register')}
               </Button>
 
               <Typography variant="body2" color="text.secondary">
-                Already have an account? <RouterLink to="/auth/login">Login</RouterLink>
+                {t('auth.alreadyAccount')} <RouterLink to="/auth/login">{t('nav.login')}</RouterLink>
               </Typography>
             </Stack>
           </Box>

@@ -1,7 +1,15 @@
 import 'reflect-metadata';
 import { createConnection, Connection } from 'typeorm';
 import * as bcrypt from 'bcryptjs';
-import { describeDbConnectionError, resolveRuntimeDbConfig, sanitizeDbConfig } from 'src/config/runtime-env';
+import {
+  assertRequiredRuntimeDbKeys,
+  describeDbConnectionError,
+  loadRuntimeEnvFiles,
+  resolveRuntimeDbConfig,
+  resolveRuntimeDbConfigSources,
+  resolveRuntimeDbRequiredKeyPresence,
+  sanitizeDbConfig,
+} from 'src/config/runtime-env';
 import {
   Brand,
   Category,
@@ -18,6 +26,15 @@ import {
 import { CouponType, ReviewStatus, UserRole } from 'src/common/enums';
 
 async function seed(): Promise<void> {
+  const loadedEnvFiles = loadRuntimeEnvFiles();
+  // eslint-disable-next-line no-console
+  console.log(`[seed] Loaded env files: ${loadedEnvFiles.join(', ') || 'none'}`);
+  // eslint-disable-next-line no-console
+  console.log(`[seed] DB env sources: ${JSON.stringify(resolveRuntimeDbConfigSources())}`);
+  // eslint-disable-next-line no-console
+  console.log(`[seed] DB env required keys present: ${JSON.stringify(resolveRuntimeDbRequiredKeyPresence())}`);
+  assertRequiredRuntimeDbKeys();
+
   const db = resolveRuntimeDbConfig();
   // eslint-disable-next-line no-console
   console.log(`[seed] Using DB config: ${JSON.stringify(sanitizeDbConfig(db))}`);

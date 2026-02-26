@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import React from 'react';
 import { ProductDetailPage } from '../pages/ProductDetailPage';
-import { PRODUCT_QUERY, REVIEWS_QUERY } from '../graphql/documents';
+import { PRODUCT_QUERY, REVIEWS_QUERY, SHIPPING_ESTIMATE_QUERY } from '../graphql/documents';
 import { renderWithProviders } from '../test-utils/renderWithProviders';
 
 const sessionId = 'sess_gallery_test';
@@ -61,6 +61,25 @@ describe('Product gallery accessibility', () => {
           result: {
             data: {
               reviews: [],
+            },
+          },
+        },
+        {
+          request: {
+            query: SHIPPING_ESTIMATE_QUERY,
+            variables: { input: { region: 'US-DEFAULT', subtotal: 129.99 } },
+          },
+          result: {
+            data: {
+              shippingEstimate: {
+                region: 'US-DEFAULT',
+                flatRate: 8,
+                freeShippingOver: 150,
+                remainingForFreeShipping: 20.01,
+                eligibleForFreeShipping: false,
+                estimatedMinDays: 2,
+                estimatedMaxDays: 5,
+              },
             },
           },
         },

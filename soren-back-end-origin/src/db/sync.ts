@@ -1,9 +1,26 @@
 import 'reflect-metadata';
 import { createConnection } from 'typeorm';
-import { describeDbConnectionError, resolveRuntimeDbConfig, sanitizeDbConfig } from '../config/runtime-env';
+import {
+  assertRequiredRuntimeDbKeys,
+  describeDbConnectionError,
+  loadRuntimeEnvFiles,
+  resolveRuntimeDbConfig,
+  resolveRuntimeDbConfigSources,
+  resolveRuntimeDbRequiredKeyPresence,
+  sanitizeDbConfig,
+} from '../config/runtime-env';
 import { ENTITIES } from '../entities';
 
 async function syncSchema(): Promise<void> {
+  const loadedEnvFiles = loadRuntimeEnvFiles();
+  // eslint-disable-next-line no-console
+  console.log(`[db:sync] Loaded env files: ${loadedEnvFiles.join(', ') || 'none'}`);
+  // eslint-disable-next-line no-console
+  console.log(`[db:sync] DB env sources: ${JSON.stringify(resolveRuntimeDbConfigSources())}`);
+  // eslint-disable-next-line no-console
+  console.log(`[db:sync] DB env required keys present: ${JSON.stringify(resolveRuntimeDbRequiredKeyPresence())}`);
+  assertRequiredRuntimeDbKeys();
+
   const db = resolveRuntimeDbConfig();
   const synchronizeEnabled = db.synchronize;
 

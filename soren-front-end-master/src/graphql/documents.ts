@@ -132,6 +132,8 @@ export const CART_QUERY = gql`
       id
       sessionId
       active
+      promoCode
+      giftCardCode
       items {
         id
         quantity
@@ -254,6 +256,19 @@ export const MY_ORDERS_QUERY = gql`
       coupon {
         code
       }
+      statusHistory {
+        id
+        status
+        note
+        createdAt
+      }
+      returnRequests {
+        id
+        reason
+        exchangePreferred
+        status
+        createdAt
+      }
     }
   }
 `;
@@ -298,6 +313,107 @@ export const ORDER_BY_ID_QUERY = gql`
       coupon {
         code
       }
+      statusHistory {
+        id
+        status
+        note
+        createdAt
+      }
+      returnRequests {
+        id
+        reason
+        exchangePreferred
+        status
+        createdAt
+      }
+    }
+  }
+`;
+
+export const ORDER_STATUS_TIMELINE_QUERY = gql`
+  query OrderStatusTimeline($orderId: Int!) {
+    orderStatusTimeline(orderId: $orderId) {
+      id
+      status
+      note
+      createdAt
+    }
+  }
+`;
+
+export const MY_WISHLIST_QUERY = gql`
+  query MyWishlist {
+    myWishlist {
+      id
+      name
+      slug
+      description
+      basePrice
+      thumbnail
+      averageRating
+      brand {
+        id
+        name
+      }
+      category {
+        id
+        name
+      }
+      variants {
+        id
+        sku
+        color
+        size
+        inventory {
+          quantity
+          reserved
+        }
+      }
+    }
+  }
+`;
+
+export const MY_ADDRESSES_QUERY = gql`
+  query MyAddresses {
+    myAddresses {
+      id
+      label
+      fullName
+      line1
+      city
+      region
+      postalCode
+      isDefault
+    }
+  }
+`;
+
+export const MY_CHECKOUT_PROFILE_QUERY = gql`
+  query MyCheckoutProfile {
+    myCheckoutProfile {
+      id
+      shippingName
+      shippingLine1
+      shippingCity
+      shippingRegion
+      shippingPostalCode
+      cardholderName
+      cardLast4
+      cardExpiry
+    }
+  }
+`;
+
+export const SHIPPING_ESTIMATE_QUERY = gql`
+  query ShippingEstimate($input: ShippingEstimateInput!) {
+    shippingEstimate(input: $input) {
+      region
+      flatRate
+      freeShippingOver
+      remainingForFreeShipping
+      eligibleForFreeShipping
+      estimatedMinDays
+      estimatedMaxDays
     }
   }
 `;
@@ -480,6 +596,30 @@ export const REMOVE_CART_ITEM_MUTATION = gql`
   }
 `;
 
+export const APPLY_CART_PROMO_MUTATION = gql`
+  mutation ApplyCartPromo($input: ApplyCartPromoInput!) {
+    applyCartPromo(input: $input) {
+      id
+      promoCode
+      items {
+        id
+      }
+    }
+  }
+`;
+
+export const REMOVE_CART_PROMO_MUTATION = gql`
+  mutation RemoveCartPromo($input: RemoveCartPromoInput) {
+    removeCartPromo(input: $input) {
+      id
+      promoCode
+      items {
+        id
+      }
+    }
+  }
+`;
+
 export const MERGE_GUEST_CART_MUTATION = gql`
   mutation MergeGuestCart($input: MergeGuestCartInput!) {
     mergeGuestCart(input: $input) {
@@ -495,6 +635,34 @@ export const CREATE_REVIEW_MUTATION = gql`
       rating
       comment
       status
+    }
+  }
+`;
+
+export const ADD_TO_WISHLIST_MUTATION = gql`
+  mutation AddToWishlist($input: WishlistProductInput!) {
+    addToWishlist(input: $input) {
+      id
+    }
+  }
+`;
+
+export const REMOVE_FROM_WISHLIST_MUTATION = gql`
+  mutation RemoveFromWishlist($input: WishlistProductInput!) {
+    removeFromWishlist(input: $input) {
+      id
+    }
+  }
+`;
+
+export const CREATE_RETURN_REQUEST_MUTATION = gql`
+  mutation CreateReturnRequest($input: CreateReturnRequestInput!) {
+    createReturnRequest(input: $input) {
+      id
+      reason
+      exchangePreferred
+      status
+      createdAt
     }
   }
 `;
@@ -611,6 +779,87 @@ export const ADMIN_UPDATE_USER_ROLE_MUTATION = gql`
     adminUpdateUserRole(input: $input) {
       id
       role
+    }
+  }
+`;
+
+export const SUBSCRIBE_NEWSLETTER_MUTATION = gql`
+  mutation SubscribeNewsletter($input: NewsletterSubscriptionInput!) {
+    subscribeNewsletter(input: $input) {
+      success
+      message
+    }
+  }
+`;
+
+export const SUBSCRIBE_BACK_IN_STOCK_MUTATION = gql`
+  mutation SubscribeBackInStock($input: BackInStockSubscriptionInput!) {
+    subscribeBackInStock(input: $input) {
+      success
+      message
+    }
+  }
+`;
+
+export const SUBMIT_SUPPORT_MESSAGE_MUTATION = gql`
+  mutation SubmitSupportMessage($input: SupportMessageInput!) {
+    submitSupportMessage(input: $input) {
+      id
+      status
+      message
+    }
+  }
+`;
+
+export const TRACK_ANALYTICS_EVENT_MUTATION = gql`
+  mutation TrackAnalyticsEvent($input: ClientAnalyticsInput!) {
+    trackClientAnalytics(input: $input) {
+      id
+      eventType
+      metadata
+    }
+  }
+`;
+
+export const SAVE_ADDRESS_MUTATION = gql`
+  mutation SaveAddress($input: SaveAddressInput!) {
+    saveAddress(input: $input) {
+      id
+      fullName
+      line1
+      city
+      region
+      postalCode
+      isDefault
+    }
+  }
+`;
+
+export const UPDATE_ADDRESS_MUTATION = gql`
+  mutation UpdateAddress($input: UpdateAddressInput!) {
+    updateAddress(input: $input) {
+      id
+      fullName
+      line1
+      city
+      region
+      postalCode
+      isDefault
+    }
+  }
+`;
+
+export const DELETE_ADDRESS_MUTATION = gql`
+  mutation DeleteAddress($id: Int!) {
+    deleteAddress(id: $id)
+  }
+`;
+
+export const SET_DEFAULT_ADDRESS_MUTATION = gql`
+  mutation SetDefaultAddress($id: Int!) {
+    setDefaultAddress(id: $id) {
+      id
+      isDefault
     }
   }
 `;

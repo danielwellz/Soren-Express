@@ -13,6 +13,7 @@ import { Product } from './product.entity';
 import { Inventory } from './inventory.entity';
 import { CartItem } from './cart-item.entity';
 import { OrderItem } from './order-item.entity';
+import { BackInStockSubscription } from './back-in-stock-subscription.entity';
 
 @ObjectType()
 @Entity({ name: 'product_variants' })
@@ -50,6 +51,9 @@ export class ProductVariant {
 
   @OneToMany(() => OrderItem, (item) => item.variant)
   orderItems?: OrderItem[];
+
+  @OneToMany(() => BackInStockSubscription, (subscription) => subscription.variant)
+  backInStockSubscriptions?: BackInStockSubscription[];
 
   @Field()
   @CreateDateColumn({ name: 'created_at' })

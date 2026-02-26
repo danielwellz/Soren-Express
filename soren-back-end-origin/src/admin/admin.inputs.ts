@@ -1,12 +1,19 @@
 import { Field, InputType, Int } from '@nestjs/graphql';
+import { IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
 import { CouponType, OrderStatus, UserRole } from 'src/common/enums';
 
 @InputType()
 export class CreateCategoryInput {
   @Field()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(255)
   name: string;
 
   @Field({ nullable: true })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
   description?: string;
 }
 
@@ -19,9 +26,15 @@ export class UpdateCategoryInput extends CreateCategoryInput {
 @InputType()
 export class CreateBrandInput {
   @Field()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(255)
   name: string;
 
   @Field({ nullable: true })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
   description?: string;
 }
 
@@ -34,6 +47,9 @@ export class UpdateBrandInput extends CreateBrandInput {
 @InputType()
 export class CreateProductInput {
   @Field()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(255)
   name: string;
 
   @Field()

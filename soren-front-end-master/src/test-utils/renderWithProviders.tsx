@@ -1,11 +1,15 @@
 import { MockedProvider, MockedResponse } from '@apollo/client/testing';
+import { InMemoryCache } from '@apollo/client';
 import { render } from '@testing-library/react';
 import React from 'react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { AnalyticsProvider } from '../context/AnalyticsContext';
 import { AuthProvider } from '../context/AuthContext';
+import { CompareProvider } from '../context/CompareContext';
 import { LocaleProvider } from '../context/LocaleContext';
 import { ThemeModeProvider } from '../context/ThemeModeContext';
 import { ToastProvider } from '../context/ToastContext';
+import { WishlistProvider } from '../context/WishlistContext';
 
 type RenderWithProvidersOptions = {
   route?: string;
@@ -20,7 +24,7 @@ export function renderWithProviders(
     route = '/',
     path,
     mocks = [],
-    withAuthProvider = false,
+    withAuthProvider: _withAuthProvider = true,
   }: RenderWithProvidersOptions = {},
 ) {
   const content = path ? (
@@ -32,12 +36,18 @@ export function renderWithProviders(
   );
 
   const wrapped = (
-    <MockedProvider mocks={mocks}>
+    <MockedProvider mocks={mocks} cache={new InMemoryCache()}>
       <LocaleProvider>
         <ThemeModeProvider>
           <ToastProvider>
             <MemoryRouter initialEntries={[route]}>
-              {withAuthProvider ? <AuthProvider>{content}</AuthProvider> : content}
+              <AuthProvider>
+                <WishlistProvider>
+                  <CompareProvider>
+                    <AnalyticsProvider>{content}</AnalyticsProvider>
+                  </CompareProvider>
+                </WishlistProvider>
+              </AuthProvider>
             </MemoryRouter>
           </ToastProvider>
         </ThemeModeProvider>

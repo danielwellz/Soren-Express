@@ -30,6 +30,14 @@ export class Cart {
   @ManyToOne(() => User, (user) => user.carts, { nullable: true, onDelete: 'SET NULL' })
   user?: User;
 
+  @Field({ nullable: true })
+  @Column({ name: 'promo_code', nullable: true })
+  promoCode?: string;
+
+  @Field({ nullable: true })
+  @Column({ name: 'gift_card_code', nullable: true })
+  giftCardCode?: string;
+
   @Field(() => [CartItem], { nullable: true })
   @OneToMany(() => CartItem, (item) => item.cart, { cascade: true })
   items?: CartItem[];

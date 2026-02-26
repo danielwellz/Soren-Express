@@ -12,6 +12,8 @@ import { Category } from './category.entity';
 import { Brand } from './brand.entity';
 import { ProductVariant } from './product-variant.entity';
 import { Review } from './review.entity';
+import { WishlistItem } from './wishlist-item.entity';
+import { BackInStockSubscription } from './back-in-stock-subscription.entity';
 
 @ObjectType()
 @Entity({ name: 'products' })
@@ -70,6 +72,12 @@ export class Product {
 
   @OneToMany(() => Review, (review) => review.product)
   reviews?: Review[];
+
+  @OneToMany(() => WishlistItem, (item) => item.product)
+  wishlistItems?: WishlistItem[];
+
+  @OneToMany(() => BackInStockSubscription, (subscription) => subscription.product)
+  backInStockSubscriptions?: BackInStockSubscription[];
 
   @Field()
   @CreateDateColumn({ name: 'created_at' })

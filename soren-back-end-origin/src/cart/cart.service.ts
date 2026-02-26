@@ -8,6 +8,7 @@ import { AnalyticsService } from 'src/analytics/analytics.service';
 import {
   Cart,
   CartItem,
+  Coupon,
   Inventory,
   ProductVariant,
   User,
@@ -15,8 +16,10 @@ import {
 import { Repository } from 'typeorm';
 import {
   AddCartItemInput,
+  ApplyCartPromoInput,
   MergeGuestCartInput,
   RemoveCartItemInput,
+  RemoveCartPromoInput,
   UpdateCartItemInput,
 } from './cart.inputs';
 
@@ -31,6 +34,8 @@ export class CartService {
     private readonly variantsRepository: Repository<ProductVariant>,
     @InjectRepository(Inventory)
     private readonly inventoryRepository: Repository<Inventory>,
+    @InjectRepository(Coupon)
+    private readonly couponsRepository: Repository<Coupon>,
     private readonly analyticsService: AnalyticsService,
   ) {}
 
@@ -177,8 +182,19 @@ export class CartService {
       relations: ['items', 'items.variant', 'items.variant.product', 'items.variant.inventory'],
     });
 
-    if (!guestCart || !guestCart.items?.length) {
+    if (!guestCart) {
       return userCart;
+    }
+
+    if (guestCart.promoCode && !userCart.promoCode) {
+      userCart.promoCode = guestCart.promoCode;
+      await this.cartsRepository.save(userCart);
+    }
+
+    if (!guestCart.items?.length) {
+      guestCart.active = false;
+      await this.cartsRepository.save(guestCart);
+      return this.getCartForUserOrSession(user, undefined);
     }
 
     for (const item of guestCart.items) {
@@ -194,6 +210,31 @@ export class CartService {
     guestCart.active = false;
     await this.cartsRepository.save(guestCart);
     return this.getCartForUserOrSession(user, undefined);
+  }
+
+  async applyPromoCode(input: ApplyCartPromoInput, user?: User): Promise<Cart> {
+    const cart = await this.getCartForUserOrSession(user, input.sessionId);
+    const couponCode = input.couponCode.trim().toUpperCase();
+    const coupon = await this.couponsRepository.findOne({ where: { code: couponCode } });
+
+    if (!coupon || !coupon.active) {
+      throw new BadRequestException('Invalid coupon');
+    }
+
+    if (coupon.expiresAt && new Date(coupon.expiresAt) < new Date()) {
+      throw new BadRequestException('Coupon expired');
+    }
+
+    cart.promoCode = couponCode;
+    await this.cartsRepository.save(cart);
+    return this.getCartForUserOrSession(user, input.sessionId);
+  }
+
+  async removePromoCode(input: RemoveCartPromoInput, user?: User): Promise<Cart> {
+    const cart = await this.getCartForUserOrSession(user, input.sessionId);
+    cart.promoCode = null;
+    await this.cartsRepository.save(cart);
+    return this.getCartForUserOrSession(user, input.sessionId);
   }
 
   private assertOwnership(cart: Cart, user?: User, sessionId?: string): void {

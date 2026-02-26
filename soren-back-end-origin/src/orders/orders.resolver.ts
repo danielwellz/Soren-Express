@@ -2,8 +2,10 @@ import { UseGuards } from '@nestjs/common';
 import { Args, Int, Query, Resolver } from '@nestjs/graphql';
 import { CurrentUser } from 'src/auth/current-user.decorator';
 import { GqlAuthGuard } from 'src/auth/gql-auth.guard';
-import { Order, User } from 'src/entities';
+import { Mutation } from '@nestjs/graphql';
+import { Order, OrderStatusHistory, ReturnRequest, User } from 'src/entities';
 import { OrdersService } from './orders.service';
+import { CreateReturnRequestInput } from './orders.inputs';
 
 @Resolver(() => Order)
 export class OrdersResolver {
@@ -22,5 +24,29 @@ export class OrdersResolver {
     @CurrentUser() user: User,
   ): Promise<Order> {
     return this.ordersService.orderById(id, user);
+  }
+
+  @UseGuards(GqlAuthGuard)
+  @Query(() => [OrderStatusHistory])
+  async orderStatusTimeline(
+    @Args('orderId', { type: () => Int }) orderId: number,
+    @CurrentUser() user: User,
+  ): Promise<OrderStatusHistory[]> {
+    return this.ordersService.orderStatusTimeline(orderId, user);
+  }
+
+  @UseGuards(GqlAuthGuard)
+  @Mutation(() => ReturnRequest)
+  async createReturnRequest(
+    @Args('input') input: CreateReturnRequestInput,
+    @CurrentUser() user: User,
+  ): Promise<ReturnRequest> {
+    return this.ordersService.createReturnRequest(input, user);
+  }
+
+  @UseGuards(GqlAuthGuard)
+  @Query(() => [ReturnRequest])
+  async myReturnRequests(@CurrentUser() user: User): Promise<ReturnRequest[]> {
+    return this.ordersService.myReturnRequests(user);
   }
 }

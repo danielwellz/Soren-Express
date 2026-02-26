@@ -54,7 +54,9 @@
     "open": "باز کردن",
     "menu": "منو",
     "comingSoon": "به‌زودی",
-    "notAvailable": "در دسترس نیست"
+    "notAvailable": "در دسترس نیست",
+    "defaultVariant": "پیش‌فرض",
+    "oneSize": "تک‌سایز"
   },
   "nav": {
     "home": "خانه",
@@ -168,6 +170,7 @@
     "sizeGuideDescription": "برای انتخاب اندازه مناسب از جدول زیر استفاده کنید.",
     "stickyVariant": "گونه انتخاب‌شده",
     "stickyAdd": "افزودن به سبد",
+    "days": "روز",
     "deliveryEstimate": "زمان تقریبی تحویل",
     "trust": {
       "secure": "پرداخت امن",
@@ -177,6 +180,7 @@
   },
   "miniCart": {
     "title": "پیش‌نمایش سبد",
+    "close": "بستن پیش‌نمایش سبد",
     "emptyTitle": "سبد خرید شما خالی است",
     "emptyDescription": "برای شروع پرداخت، محصولی اضافه کنید.",
     "continueShopping": "ادامه خرید",
@@ -318,6 +322,10 @@
     "items": "کالا",
     "savedAddresses": "نشانی‌های ذخیره‌شده",
     "addAddress": "افزودن نشانی",
+    "roles": {
+      "customer": "مشتری",
+      "admin": "مدیر"
+    },
     "returns": "مرجوعی و تعویض"
   },
   "orderDetails": {
@@ -335,7 +343,22 @@
     "exchangePreferred": "درخواست تعویض",
     "submitReturn": "ثبت درخواست",
     "returnSuccess": "درخواست مرجوعی ثبت شد",
-    "trackingNumber": "شماره رهگیری"
+    "trackingNumber": "شماره رهگیری",
+    "status": {
+      "pending": "در انتظار",
+      "paid": "پرداخت‌شده",
+      "fulfilled": "تکمیل‌شده",
+      "cancelled": "لغوشده",
+      "requiresConfirmation": "نیازمند تأیید",
+      "succeeded": "موفق",
+      "failed": "ناموفق",
+      "shipped": "ارسال‌شده",
+      "delivered": "تحویل‌شده",
+      "requested": "درخواست‌شده",
+      "approved": "تأییدشده",
+      "rejected": "ردشده",
+      "completed": "پایان‌یافته"
+    }
   },
   "wishlist": {
     "title": "علاقه‌مندی‌ها",
@@ -402,7 +425,70 @@
       "moneyBack": "مرجوعی چهارده‌روزه",
       "support": "پشتیبانی زنده"
     },
-    "paymentMethods": "روش‌های پرداخت قابل پذیرش"
+    "paymentMethods": "روش‌های پرداخت قابل پذیرش",
+    "paymentBadges": {
+      "visa": "ویزا",
+      "mastercard": "مسترکارت",
+      "paypal": "پی‌پل",
+      "applePay": "اپل‌پی"
+    }
+  },
+  "admin": {
+    "title": "داشبورد مدیریت",
+    "metrics": {
+      "products": "محصولات",
+      "orders": "سفارش‌ها",
+      "users": "کاربران",
+      "coupons": "کوپن‌ها"
+    },
+    "createCategory": "ایجاد دسته‌بندی",
+    "categoryName": "نام دسته‌بندی",
+    "categoryCreated": "دسته‌بندی ایجاد شد",
+    "createBrand": "ایجاد برند",
+    "brandName": "نام برند",
+    "brandCreated": "برند ایجاد شد",
+    "createCoupon": "ایجاد کوپن",
+    "code": "کد",
+    "type": "نوع",
+    "percent": "درصدی",
+    "fixed": "مقدار ثابت",
+    "amount": "مقدار",
+    "min": "حداقل",
+    "couponCreated": "کوپن ایجاد شد",
+    "saveCoupon": "ذخیره کوپن",
+    "createProduct": "ایجاد محصول",
+    "name": "نام",
+    "slug": "شناسه یکتا",
+    "description": "توضیحات",
+    "basePrice": "قیمت پایه",
+    "category": "دسته‌بندی",
+    "brand": "برند",
+    "thumbnail": "نشانی تصویر اصلی",
+    "galleryUrls": "نشانی‌های گالری (جداشده با ویرگول)",
+    "productCreated": "محصول ایجاد شد",
+    "saveProduct": "ذخیره محصول",
+    "createVariant": "ایجاد گونه و موجودی",
+    "product": "محصول",
+    "sku": "شناسه کالا",
+    "color": "رنگ",
+    "size": "اندازه",
+    "priceAdjustment": "تغییر قیمت",
+    "inventory": "موجودی",
+    "variantCreated": "گونه ایجاد شد",
+    "saveVariant": "ذخیره گونه",
+    "latestAnalytics": "آخرین رویدادهای تحلیلی",
+    "orders": "سفارش‌ها",
+    "id": "شناسه",
+    "customer": "مشتری",
+    "status": "وضعیت",
+    "total": "جمع کل",
+    "action": "عملیات",
+    "orderMoved": "سفارش به وضعیت {{status}} منتقل شد",
+    "advanceStatus": "پیشروی وضعیت",
+    "users": "کاربران",
+    "role": "نقش",
+    "roleUpdated": "به نقش {{role}} به‌روزرسانی شد",
+    "toggleRole": "تغییر نقش"
   },
   "errors": {
     "default": "خطایی رخ داد. لطفاً دوباره تلاش کنید.",

@@ -21,8 +21,11 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
+import { alpha } from '@mui/material/styles';
 import React, { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useToast } from '../context/ToastContext';
+import { useLocaleFormatters } from '../hooks/useLocaleFormatters';
 import {
   ADMIN_ANALYTICS_QUERY,
   ADMIN_COUPONS_QUERY,
@@ -42,12 +45,26 @@ import {
 
 const dashboardCard = {
   borderRadius: 3,
-  background: 'linear-gradient(135deg, rgba(255,255,255,0.86), rgba(255,255,255,0.98))',
-  border: '1px solid rgba(217,229,243,0.9)',
+  background: (theme: any) =>
+    `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.88)}, ${alpha(theme.palette.background.paper, 0.98)})`,
+  border: '1px solid',
+  borderColor: 'divider',
 };
 
+function localizeStatus(status: string, t: (key: string) => string): string {
+  const map: Record<string, string> = {
+    PENDING: t('orderDetails.status.pending'),
+    PAID: t('orderDetails.status.paid'),
+    FULFILLED: t('orderDetails.status.fulfilled'),
+    CANCELLED: t('orderDetails.status.cancelled'),
+  };
+  return map[status] || status;
+}
+
 export function AdminPage() {
+  const { t } = useTranslation();
   const { showToast } = useToast();
+  const { formatCurrency } = useLocaleFormatters();
 
   const { data: productsData, refetch: refetchProducts } = useQuery(ADMIN_PRODUCTS_QUERY);
   const { data: ordersData, refetch: refetchOrders } = useQuery(ADMIN_ORDERS_QUERY);
@@ -109,15 +126,15 @@ export function AdminPage() {
   return (
     <Container maxWidth="xl" sx={{ py: 4 }}>
       <Typography variant="h4" sx={{ mb: 2.5 }}>
-        Admin dashboard
+        {t('admin.title')}
       </Typography>
 
       <Grid container spacing={2} sx={{ mb: 2 }}>
         {[
-          ['Products', metrics.products],
-          ['Orders', metrics.orders],
-          ['Users', metrics.users],
-          ['Coupons', metrics.coupons],
+          [t('admin.metrics.products'), metrics.products],
+          [t('admin.metrics.orders'), metrics.orders],
+          [t('admin.metrics.users'), metrics.users],
+          [t('admin.metrics.coupons'), metrics.coupons],
         ].map(([label, value]) => (
           <Grid item xs={6} md={3} key={label}>
             <Card sx={dashboardCard}>
@@ -134,11 +151,11 @@ export function AdminPage() {
         <Grid item xs={12} md={4}>
           <Card sx={dashboardCard}>
             <CardContent>
-              <Typography variant="h6">Create category</Typography>
+              <Typography variant="h6">{t('admin.createCategory')}</Typography>
               <Stack direction="row" spacing={1} sx={{ mt: 1.5 }}>
                 <TextField
                   fullWidth
-                  label="Category name"
+                  label={t('admin.categoryName')}
                   value={categoryName}
                   onChange={(event) => setCategoryName(event.target.value)}
                 />
@@ -151,12 +168,12 @@ export function AdminPage() {
                       .then(() => {
                         setCategoryName('');
                         void refetchCategories();
-                        showToast('Category created', 'success');
+                        showToast(t('admin.categoryCreated'), 'success');
                       })
                       .catch((error: Error) => showToast(error.message, 'error'));
                   }}
                 >
-                  Add
+                  {t('common.add')}
                 </Button>
               </Stack>
             </CardContent>
@@ -166,11 +183,11 @@ export function AdminPage() {
         <Grid item xs={12} md={4}>
           <Card sx={dashboardCard}>
             <CardContent>
-              <Typography variant="h6">Create brand</Typography>
+              <Typography variant="h6">{t('admin.createBrand')}</Typography>
               <Stack direction="row" spacing={1} sx={{ mt: 1.5 }}>
                 <TextField
                   fullWidth
-                  label="Brand name"
+                  label={t('admin.brandName')}
                   value={brandName}
                   onChange={(event) => setBrandName(event.target.value)}
                 />
@@ -183,12 +200,12 @@ export function AdminPage() {
                       .then(() => {
                         setBrandName('');
                         void refetchBrands();
-                        showToast('Brand created', 'success');
+                        showToast(t('admin.brandCreated'), 'success');
                       })
                       .catch((error: Error) => showToast(error.message, 'error'));
                   }}
                 >
-                  Add
+                  {t('common.add')}
                 </Button>
               </Stack>
             </CardContent>
@@ -198,12 +215,12 @@ export function AdminPage() {
         <Grid item xs={12} md={4}>
           <Card sx={dashboardCard}>
             <CardContent>
-              <Typography variant="h6">Create coupon</Typography>
+              <Typography variant="h6">{t('admin.createCoupon')}</Typography>
               <Grid container spacing={1.2} sx={{ mt: 0.2 }}>
                 <Grid item xs={12} sm={4}>
                   <TextField
                     fullWidth
-                    label="Code"
+                    label={t('admin.code')}
                     value={couponForm.code}
                     onChange={(event) =>
                       setCouponForm((old) => ({ ...old, code: event.target.value.toUpperCase() }))
@@ -212,24 +229,24 @@ export function AdminPage() {
                 </Grid>
                 <Grid item xs={12} sm={3}>
                   <FormControl fullWidth>
-                    <InputLabel id="coupon-type-label">Type</InputLabel>
+                    <InputLabel id="coupon-type-label">{t('admin.type')}</InputLabel>
                     <Select
                       labelId="coupon-type-label"
-                      label="Type"
+                      label={t('admin.type')}
                       value={couponForm.type}
                       onChange={(event) =>
                         setCouponForm((old) => ({ ...old, type: event.target.value }))
                       }
                     >
-                      <MenuItem value="PERCENT">Percent</MenuItem>
-                      <MenuItem value="FIXED">Fixed</MenuItem>
+                      <MenuItem value="PERCENT">{t('admin.percent')}</MenuItem>
+                      <MenuItem value="FIXED">{t('admin.fixed')}</MenuItem>
                     </Select>
                   </FormControl>
                 </Grid>
                 <Grid item xs={12} sm={2.5}>
                   <TextField
                     fullWidth
-                    label="Amount"
+                    label={t('admin.amount')}
                     type="number"
                     value={couponForm.amount}
                     onChange={(event) =>
@@ -240,7 +257,7 @@ export function AdminPage() {
                 <Grid item xs={12} sm={2.5}>
                   <TextField
                     fullWidth
-                    label="Min"
+                    label={t('admin.min')}
                     type="number"
                     value={couponForm.minOrderAmount}
                     onChange={(event) =>
@@ -264,12 +281,12 @@ export function AdminPage() {
                     .then(() => {
                       setCouponForm({ code: '', type: 'PERCENT', amount: 10, minOrderAmount: 0 });
                       void refetchCoupons();
-                      showToast('Coupon created', 'success');
+                      showToast(t('admin.couponCreated'), 'success');
                     })
                     .catch((error: Error) => showToast(error.message, 'error'));
                 }}
               >
-                Save coupon
+                {t('admin.saveCoupon')}
               </Button>
             </CardContent>
           </Card>
@@ -280,12 +297,12 @@ export function AdminPage() {
         <Grid item xs={12} md={8}>
           <Card sx={dashboardCard}>
             <CardContent>
-              <Typography variant="h6">Create product</Typography>
+              <Typography variant="h6">{t('admin.createProduct')}</Typography>
               <Grid container spacing={1.2} sx={{ mt: 0.3 }}>
                 <Grid item xs={12} sm={6}>
                   <TextField
                     fullWidth
-                    label="Name"
+                    label={t('admin.name')}
                     value={productForm.name}
                     onChange={(event) =>
                       setProductForm((old) => ({ ...old, name: event.target.value }))
@@ -295,7 +312,7 @@ export function AdminPage() {
                 <Grid item xs={12} sm={6}>
                   <TextField
                     fullWidth
-                    label="Slug"
+                    label={t('admin.slug')}
                     value={productForm.slug}
                     onChange={(event) =>
                       setProductForm((old) => ({ ...old, slug: event.target.value }))
@@ -305,7 +322,7 @@ export function AdminPage() {
                 <Grid item xs={12}>
                   <TextField
                     fullWidth
-                    label="Description"
+                    label={t('admin.description')}
                     value={productForm.description}
                     onChange={(event) =>
                       setProductForm((old) => ({ ...old, description: event.target.value }))
@@ -315,7 +332,7 @@ export function AdminPage() {
                 <Grid item xs={12} sm={3}>
                   <TextField
                     fullWidth
-                    label="Base price"
+                    label={t('admin.basePrice')}
                     type="number"
                     value={productForm.basePrice}
                     onChange={(event) =>
@@ -325,10 +342,10 @@ export function AdminPage() {
                 </Grid>
                 <Grid item xs={12} sm={3}>
                   <FormControl fullWidth>
-                    <InputLabel id="category-id-label">Category</InputLabel>
+                    <InputLabel id="category-id-label">{t('admin.category')}</InputLabel>
                     <Select
                       labelId="category-id-label"
-                      label="Category"
+                      label={t('admin.category')}
                       value={productForm.categoryId}
                       onChange={(event) =>
                         setProductForm((old) => ({ ...old, categoryId: event.target.value }))
@@ -344,10 +361,10 @@ export function AdminPage() {
                 </Grid>
                 <Grid item xs={12} sm={3}>
                   <FormControl fullWidth>
-                    <InputLabel id="brand-id-label">Brand</InputLabel>
+                    <InputLabel id="brand-id-label">{t('admin.brand')}</InputLabel>
                     <Select
                       labelId="brand-id-label"
-                      label="Brand"
+                      label={t('admin.brand')}
                       value={productForm.brandId}
                       onChange={(event) =>
                         setProductForm((old) => ({ ...old, brandId: event.target.value }))
@@ -364,7 +381,7 @@ export function AdminPage() {
                 <Grid item xs={12} sm={3}>
                   <TextField
                     fullWidth
-                    label="Thumbnail URL"
+                    label={t('admin.thumbnail')}
                     value={productForm.thumbnail}
                     onChange={(event) =>
                       setProductForm((old) => ({ ...old, thumbnail: event.target.value }))
@@ -374,7 +391,7 @@ export function AdminPage() {
                 <Grid item xs={12}>
                   <TextField
                     fullWidth
-                    label="Gallery URLs (comma-separated)"
+                    label={t('admin.galleryUrls')}
                     value={productForm.galleryUrls}
                     onChange={(event) =>
                       setProductForm((old) => ({ ...old, galleryUrls: event.target.value }))
@@ -406,27 +423,27 @@ export function AdminPage() {
                     },
                   })
                     .then(() => {
-                      showToast('Product created', 'success');
+                      showToast(t('admin.productCreated'), 'success');
                       void refetchProducts();
                     })
                     .catch((error: Error) => showToast(error.message, 'error'));
                 }}
               >
-                Save product
+                {t('admin.saveProduct')}
               </Button>
             </CardContent>
           </Card>
 
           <Card sx={{ ...dashboardCard, mt: 2 }}>
             <CardContent>
-              <Typography variant="h6">Create variant + inventory</Typography>
+              <Typography variant="h6">{t('admin.createVariant')}</Typography>
               <Grid container spacing={1.2} sx={{ mt: 0.3 }}>
                 <Grid item xs={12} sm={3}>
                   <FormControl fullWidth>
-                    <InputLabel id="variant-product-label">Product</InputLabel>
+                    <InputLabel id="variant-product-label">{t('admin.product')}</InputLabel>
                     <Select
                       labelId="variant-product-label"
-                      label="Product"
+                      label={t('admin.product')}
                       value={variantForm.productId}
                       onChange={(event) =>
                         setVariantForm((old) => ({ ...old, productId: event.target.value }))
@@ -443,7 +460,7 @@ export function AdminPage() {
                 <Grid item xs={12} sm={2.2}>
                   <TextField
                     fullWidth
-                    label="SKU"
+                    label={t('admin.sku')}
                     value={variantForm.sku}
                     onChange={(event) =>
                       setVariantForm((old) => ({ ...old, sku: event.target.value }))
@@ -453,7 +470,7 @@ export function AdminPage() {
                 <Grid item xs={12} sm={2.2}>
                   <TextField
                     fullWidth
-                    label="Color"
+                    label={t('admin.color')}
                     value={variantForm.color}
                     onChange={(event) =>
                       setVariantForm((old) => ({ ...old, color: event.target.value }))
@@ -463,7 +480,7 @@ export function AdminPage() {
                 <Grid item xs={12} sm={2.2}>
                   <TextField
                     fullWidth
-                    label="Size"
+                    label={t('admin.size')}
                     value={variantForm.size}
                     onChange={(event) =>
                       setVariantForm((old) => ({ ...old, size: event.target.value }))
@@ -473,7 +490,7 @@ export function AdminPage() {
                 <Grid item xs={12} sm={2.2}>
                   <TextField
                     fullWidth
-                    label="Price adj"
+                    label={t('admin.priceAdjustment')}
                     type="number"
                     value={variantForm.priceAdjustment}
                     onChange={(event) =>
@@ -484,7 +501,7 @@ export function AdminPage() {
                 <Grid item xs={12} sm={2.2}>
                   <TextField
                     fullWidth
-                    label="Inventory"
+                    label={t('admin.inventory')}
                     type="number"
                     value={variantForm.inventoryQuantity}
                     onChange={(event) =>
@@ -510,7 +527,7 @@ export function AdminPage() {
                     },
                   })
                     .then(() => {
-                      showToast('Variant created', 'success');
+                      showToast(t('admin.variantCreated'), 'success');
                       void refetchProducts();
                       setVariantForm({
                         productId: '',
@@ -524,7 +541,7 @@ export function AdminPage() {
                     .catch((error: Error) => showToast(error.message, 'error'));
                 }}
               >
-                Save variant
+                {t('admin.saveVariant')}
               </Button>
             </CardContent>
           </Card>
@@ -533,10 +550,10 @@ export function AdminPage() {
         <Grid item xs={12} md={4}>
           <Card sx={dashboardCard}>
             <CardContent>
-              <Typography variant="h6">Latest analytics events</Typography>
+              <Typography variant="h6">{t('admin.latestAnalytics')}</Typography>
               <Stack spacing={1} sx={{ mt: 1.2 }}>
                 {(analyticsData?.adminAnalyticsEvents || []).slice(0, 10).map((event: any) => (
-                  <Box key={event.id} sx={{ p: 1.2, border: '1px solid #e5edf3', borderRadius: 1 }}>
+                  <Box key={event.id} sx={{ p: 1.2, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
                     <Typography variant="body2" sx={{ fontWeight: 600 }}>
                       {event.eventType}
                     </Typography>
@@ -558,17 +575,17 @@ export function AdminPage() {
           <Card sx={dashboardCard}>
             <CardContent>
               <Typography variant="h6" sx={{ mb: 1 }}>
-                Orders
+                {t('admin.orders')}
               </Typography>
               <TableContainer>
                 <Table size="small">
                   <TableHead>
                     <TableRow>
-                      <TableCell>ID</TableCell>
-                      <TableCell>Customer</TableCell>
-                      <TableCell>Status</TableCell>
-                      <TableCell>Total</TableCell>
-                      <TableCell align="right">Action</TableCell>
+                      <TableCell>{t('admin.id')}</TableCell>
+                      <TableCell>{t('admin.customer')}</TableCell>
+                      <TableCell>{t('admin.status')}</TableCell>
+                      <TableCell>{t('admin.total')}</TableCell>
+                      <TableCell align="right">{t('admin.action')}</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -576,8 +593,8 @@ export function AdminPage() {
                       <TableRow key={order.id}>
                         <TableCell>#{order.id}</TableCell>
                         <TableCell>{order.user?.fullName || order.user?.email}</TableCell>
-                        <TableCell>{order.status}</TableCell>
-                        <TableCell>${Number(order.total).toFixed(2)}</TableCell>
+                        <TableCell>{localizeStatus(order.status, t)}</TableCell>
+                        <TableCell>{formatCurrency(Number(order.total || 0))}</TableCell>
                         <TableCell align="right">
                           <Button
                             size="small"
@@ -592,13 +609,18 @@ export function AdminPage() {
                                 },
                               })
                                 .then(() => {
-                                  showToast(`Order moved to ${nextStatus}`, 'success');
+                                  showToast(
+                                    t('admin.orderMoved', {
+                                      status: localizeStatus(nextStatus, t),
+                                    }),
+                                    'success',
+                                  );
                                   void refetchOrders();
                                 })
                                 .catch((error: Error) => showToast(error.message, 'error'));
                             }}
                           >
-                            Advance status
+                            {t('admin.advanceStatus')}
                           </Button>
                         </TableCell>
                       </TableRow>
@@ -614,22 +636,22 @@ export function AdminPage() {
           <Card sx={dashboardCard}>
             <CardContent>
               <Typography variant="h6" sx={{ mb: 1 }}>
-                Users
+                {t('admin.users')}
               </Typography>
               <TableContainer>
                 <Table size="small">
                   <TableHead>
                     <TableRow>
-                      <TableCell>Name</TableCell>
-                      <TableCell>Role</TableCell>
-                      <TableCell align="right">Action</TableCell>
+                      <TableCell>{t('admin.name')}</TableCell>
+                      <TableCell>{t('admin.role')}</TableCell>
+                      <TableCell align="right">{t('admin.action')}</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
                     {(usersData?.adminUsers || []).map((user: any) => (
                       <TableRow key={user.id}>
                         <TableCell>{user.fullName}</TableCell>
-                        <TableCell>{user.role}</TableCell>
+                        <TableCell>{t(`account.roles.${String(user.role || '').toLowerCase()}`)}</TableCell>
                         <TableCell align="right">
                           <Button
                             size="small"
@@ -644,13 +666,18 @@ export function AdminPage() {
                                 },
                               })
                                 .then(() => {
-                                  showToast(`Updated to ${nextRole}`, 'success');
+                                  showToast(
+                                    t('admin.roleUpdated', {
+                                      role: t(`account.roles.${String(nextRole).toLowerCase()}`),
+                                    }),
+                                    'success',
+                                  );
                                   void refetchUsers();
                                 })
                                 .catch((error: Error) => showToast(error.message, 'error'));
                             }}
                           >
-                            Toggle role
+                            {t('admin.toggleRole')}
                           </Button>
                         </TableCell>
                       </TableRow>

@@ -1,10 +1,12 @@
-# Secrets and env files
+# Environment and secrets
 .env
 .env.*
 **/.env
 **/.env.*
 !.env.example
 !**/.env.example
+.envrc
+.direnv/
 
 # Dependencies
 node_modules/
@@ -15,27 +17,57 @@ dist/
 build/
 output/
 coverage/
+tmp/
+temp/
+.cache/
+.parcel-cache/
+.next/
+.nuxt/
+.svelte-kit/
+.vite/
+storybook-static/
+*.tsbuildinfo
 **/dist/
 **/build/
 **/output/
 **/coverage/
+**/.cache/
+**/.parcel-cache/
+**/.next/
+**/.nuxt/
+**/.svelte-kit/
+**/.vite/
+**/*.tsbuildinfo
 
 # Test and tooling artifacts
 playwright-report/
 test-results/
+.nyc_output/
 .eslintcache
 **/playwright-report/
 **/test-results/
+**/.nyc_output/
 **/.eslintcache
 
-# Logs
+# Logs and runtime files
+logs/
 *.log
+*.pid
+*.seed
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Local databases
+*.sqlite
+*.sqlite3
+*.db
 
 # OS/editor artifacts
 .DS_Store
+Thumbs.db
 .history/
 **/.DS_Store
 **/.history/

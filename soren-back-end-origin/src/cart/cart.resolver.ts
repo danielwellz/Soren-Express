@@ -5,9 +5,11 @@ import { GqlAuthGuard } from 'src/auth/gql-auth.guard';
 import { Cart, User } from 'src/entities';
 import {
   AddCartItemInput,
+  ApplyCartPromoInput,
   CartContextInput,
   MergeGuestCartInput,
   RemoveCartItemInput,
+  RemoveCartPromoInput,
   UpdateCartItemInput,
 } from './cart.inputs';
 import { CartService } from './cart.service';
@@ -55,5 +57,21 @@ export class CartResolver {
     @CurrentUser() user: User,
   ): Promise<Cart> {
     return this.cartService.mergeGuestCartToUser(input, user);
+  }
+
+  @Mutation(() => Cart)
+  async applyCartPromo(
+    @Args('input') input: ApplyCartPromoInput,
+    @CurrentUser() user?: User,
+  ): Promise<Cart> {
+    return this.cartService.applyPromoCode(input, user);
+  }
+
+  @Mutation(() => Cart)
+  async removeCartPromo(
+    @Args('input', { nullable: true }) input?: RemoveCartPromoInput,
+    @CurrentUser() user?: User,
+  ): Promise<Cart> {
+    return this.cartService.removePromoCode(input || {}, user);
   }
 }

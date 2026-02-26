@@ -1,5 +1,6 @@
 import { Alert, Box, Button, Card, CardContent, Container, Stack, TextField, Typography } from '@mui/material';
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
@@ -8,6 +9,7 @@ const SHOW_DEMO_DEFAULTS =
   process.env.REACT_APP_ENABLE_DEMO_LOGIN_DEFAULTS === 'true';
 
 export function LoginPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const { isAuthenticated, login } = useAuth();
@@ -33,7 +35,7 @@ export function LoginPage() {
     try {
       await login({ email, password });
     } catch (submitError: any) {
-      setError(submitError.message || 'Unable to login');
+      setError(submitError.message || t('auth.errors.login'));
     } finally {
       setSubmitting(false);
     }
@@ -44,10 +46,10 @@ export function LoginPage() {
       <Card className="surface-glass">
         <CardContent>
           <Typography variant="h4" sx={{ mb: 1 }}>
-            Welcome back
+            {t('auth.welcomeBack')}
           </Typography>
           <Typography color="text.secondary" sx={{ mb: 3 }}>
-            Sign in to manage your orders and checkout.
+            {t('auth.loginSubtitle')}
           </Typography>
 
           {error ? <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert> : null}
@@ -55,14 +57,14 @@ export function LoginPage() {
           <Box component="form" onSubmit={onSubmit}>
             <Stack spacing={2}>
               <TextField
-                label="Email"
+                label={t('auth.email')}
                 type="email"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
                 required
               />
               <TextField
-                label="Password"
+                label={t('auth.password')}
                 type="password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
@@ -70,14 +72,14 @@ export function LoginPage() {
               />
 
               <Button type="submit" variant="contained" size="large" disabled={submitting}>
-                {submitting ? 'Signing in...' : 'Sign in'}
+                {submitting ? t('auth.signingIn') : t('auth.signIn')}
               </Button>
 
               <Typography variant="body2" color="text.secondary">
-                Need an account? <RouterLink to="/auth/register">Register</RouterLink>
+                {t('auth.needAccount')} <RouterLink to="/auth/register">{t('nav.register')}</RouterLink>
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Forgot password? <RouterLink to="/auth/forgot-password">Reset</RouterLink>
+                {t('auth.forgotPassword')} <RouterLink to="/auth/forgot-password">{t('auth.reset')}</RouterLink>
               </Typography>
             </Stack>
           </Box>

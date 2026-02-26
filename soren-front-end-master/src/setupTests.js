@@ -24,6 +24,21 @@ Object.defineProperty(window, 'matchMedia', {
 });
 
 global.matchMedia = window.matchMedia;
+global.IntersectionObserver = class IntersectionObserver {
+  constructor(callback) {
+    this.callback = callback;
+  }
+
+  observe() {
+    if (this.callback) {
+      this.callback([{ isIntersecting: true }]);
+    }
+  }
+
+  disconnect() {}
+
+  unobserve() {}
+};
 
 jest.mock('framer-motion');
 

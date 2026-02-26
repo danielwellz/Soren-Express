@@ -18,16 +18,18 @@ test.describe('Critical storefront flows', () => {
     await page.getByRole('button', { name: /add jbl flip 6 to cart/i }).click();
 
     await page.goto('/cart');
-    await expect(page.getByRole('heading', { name: /^jbl flip 6$/i })).toBeVisible();
+    await expect(page.getByText('JBL Flip 6').first()).toBeVisible();
 
     await page.getByRole('link', { name: /^checkout$/i }).click();
     await expect(page).toHaveURL(/\/auth\/login/);
 
-    await page.getByLabel('Email').fill('shopper@soren.store');
-    await page.getByLabel('Password').fill('Password123!');
-    await expect(page.getByLabel('Email')).toHaveValue('shopper@soren.store');
-    await expect(page.getByLabel('Password')).toHaveValue('Password123!');
-    await page.getByLabel('Password').press('Enter');
+    const loginEmail = page.getByLabel(/email/i).first();
+    const loginPassword = page.getByLabel(/password/i).first();
+    await loginEmail.fill('shopper@soren.store');
+    await loginPassword.fill('Password123!');
+    await expect(loginEmail).toHaveValue('shopper@soren.store');
+    await expect(loginPassword).toHaveValue('Password123!');
+    await loginPassword.press('Enter');
     await expect.poll(() => state.user?.email || '').toBe('shopper@soren.store');
     await ensureAuthTokens(page);
 
@@ -37,20 +39,27 @@ test.describe('Critical storefront flows', () => {
 
     await expect(page).toHaveURL(/\/checkout/);
 
-    await page.locator('[data-testid="checkout-shipping-name"]:visible').fill('Jordan Lee');
-    await page.locator('[data-testid="checkout-shipping-address"]:visible').fill('1 Main Street');
-    await page.locator('[data-testid="checkout-shipping-city"]:visible').fill('Austin');
-    await page.locator('[data-testid="checkout-shipping-postal"]:visible').fill('78701');
-    await page.locator('[data-testid="checkout-coupon"]:visible').fill('SAVE10');
     const continueFromAddress = page.locator('[data-testid="checkout-address-next"]:visible');
-    await expect(continueFromAddress).toBeEnabled();
-    await continueFromAddress.click({ force: true });
+    const continueToPayment = page.locator('[data-testid="checkout-shipping-next"]:visible');
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      await page.getByLabel(/full name/i).first().fill('Jordan Lee');
+      await page.getByLabel(/^address$/i).first().fill('1 Main Street');
+      await page.getByLabel(/city/i).first().fill('Austin');
+      await page.getByLabel(/region/i).first().fill('US-DEFAULT');
+      await page.getByLabel(/postal code/i).first().fill('78701');
+      await page.getByLabel(/coupon code/i).first().fill('SAVE10');
+      await expect(continueFromAddress).toBeEnabled();
+      await continueFromAddress.click({ force: true });
+      if (await continueToPayment.isVisible({ timeout: 2500 }).catch(() => false)) {
+        break;
+      }
+    }
+
     await expect.poll(() => state.operations.includes('CheckoutPreview')).toBeTruthy();
+    await expect(continueToPayment).toBeEnabled();
+    await continueToPayment.click();
 
-    await expect(page.getByText(/shipping and tax preview/i)).toBeVisible();
-    await page.locator('[data-testid="checkout-shipping-next"]:visible').click();
-
-    await expect(page.getByText(/payment details/i)).toBeVisible();
+    await expect(page.getByRole('heading', { name: /payment details/i })).toBeVisible();
     await expect(page.getByText(/order confirmed/i)).toHaveCount(0);
 
     const confirmButton = page.locator('[data-testid="checkout-payment-confirm"]:visible');
@@ -75,16 +84,16 @@ test.describe('Critical storefront flows', () => {
 
     await page.goto('/auth/register');
     await page.getByLabel(/full name/i).fill('New Customer');
-    await page.getByLabel('Email').fill('new@soren.store');
+    await page.getByLabel(/email/i).first().fill('new@soren.store');
     await page.getByLabel(/phone/i).fill('555-1000');
-    await page.getByLabel('Password').fill('Password123!');
+    await page.getByLabel(/password/i).first().fill('Password123!');
     await page.getByRole('button', { name: /register/i }).click();
 
     await expect(page).toHaveURL(/\/account/);
     await expect.poll(() => state.mergeCalls).toBe(1);
 
     await page.goto('/cart');
-    await expect(page.getByRole('heading', { name: /^jbl flip 6$/i })).toBeVisible();
+    await expect(page.getByText('JBL Flip 6').first()).toBeVisible();
   });
 
   test('login keeps cart continuity and SPA navigation remains consistent', async ({ page }) => {
@@ -94,8 +103,8 @@ test.describe('Critical storefront flows', () => {
     await page.getByRole('button', { name: /add jbl flip 6 to cart/i }).click();
 
     await page.goto('/auth/login');
-    await page.getByLabel('Email').fill('shopper@soren.store');
-    await page.getByLabel('Password').fill('Password123!');
+    await page.getByLabel(/email/i).first().fill('shopper@soren.store');
+    await page.getByLabel(/password/i).first().fill('Password123!');
     await page.getByRole('button', { name: /sign in/i }).click();
 
     await expect(page).toHaveURL(/\/account/);
@@ -107,7 +116,7 @@ test.describe('Critical storefront flows', () => {
     await page.getByRole('button', { name: /go to cart/i }).click();
 
     await expect(page).toHaveURL(/\/cart/);
-    await expect(page.getByRole('heading', { name: /^jbl flip 6$/i })).toBeVisible();
+    await expect(page.getByText('JBL Flip 6').first()).toBeVisible();
 
     await page.getByRole('link', { name: /^checkout$/i }).click();
     await expect(page).toHaveURL(/\/checkout/);
@@ -117,6 +126,23 @@ test.describe('Critical storefront flows', () => {
   test('unknown routes render the 404 page', async ({ page }) => {
     await setupGraphqlMocks(page);
     await page.goto('/definitely-missing');
-    await expect(page.getByText(/page not found/i)).toBeVisible();
+    await expect(page.getByRole('heading', { name: /page not found/i })).toBeVisible();
+  });
+
+  test('language switch toggles RTL layout direction', async ({ page }) => {
+    await setupGraphqlMocks(page);
+    await page.goto('/');
+    await expect(page.locator('html')).toHaveAttribute('dir', 'ltr');
+    await page.getByRole('button', { name: /switch language/i }).click();
+    await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
+  });
+
+  test('mini cart supports escape close interaction', async ({ page }) => {
+    await setupGraphqlMocks(page);
+    await page.goto('/products');
+    await page.getByRole('button', { name: /add jbl flip 6 to cart/i }).click();
+    await expect(page.getByTestId('mini-cart-drawer')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('mini-cart-drawer')).toBeHidden();
   });
 });

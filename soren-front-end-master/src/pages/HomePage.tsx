@@ -8,7 +8,9 @@ import {
   Stack,
   Typography,
 } from '@mui/material';
+import { alpha } from '@mui/material/styles';
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link as RouterLink } from 'react-router-dom';
 import { ProductCard } from '../components/common/ProductCard';
 import { EmptyState } from '../components/common/EmptyState';
@@ -20,18 +22,15 @@ import {
   FEATURED_PRODUCTS_QUERY,
 } from '../graphql/documents';
 import { useMutationAction } from '../hooks/useMutationAction';
-import { getSessionId } from '../lib/session';
+import { useRecentlyViewed } from '../hooks/useRecentlyViewed';
 import { useToast } from '../context/ToastContext';
-
-const showcaseFacts = [
-  { label: 'Curated picks', value: '50+' },
-  { label: 'Fast checkout', value: '< 60s' },
-  { label: 'User rating', value: '4.8/5' },
-];
+import { getSessionId } from '../lib/session';
 
 export function HomePage() {
+  const { t } = useTranslation();
   const { showToast } = useToast();
   const runMutation = useMutationAction();
+  const { items: recentlyViewed } = useRecentlyViewed();
   const { data: categoryData } = useQuery(CATEGORIES_QUERY);
   const { data, loading } = useQuery(FEATURED_PRODUCTS_QUERY);
 
@@ -41,6 +40,12 @@ export function HomePage() {
 
   const featuredProducts = data?.featuredProducts || [];
 
+  const showcaseFacts = [
+    { label: t('home.facts.curated'), value: '50+' },
+    { label: t('home.facts.checkout'), value: '< 60s' },
+    { label: t('home.facts.rating'), value: '4.8/5' },
+  ];
+
   return (
     <Container maxWidth="xl" sx={{ py: { xs: 3, md: 5 } }}>
       <Box
@@ -49,10 +54,10 @@ export function HomePage() {
           p: { xs: 3, md: 5 },
           borderRadius: 5,
           mb: 4,
-          color: '#fff',
-          background:
-            'linear-gradient(130deg, #061329 0%, #0b2447 48%, #00a6a6 100%)',
-          boxShadow: '0 26px 50px rgba(6, 19, 41, 0.3)',
+          color: 'common.white',
+          background: (theme) =>
+            `linear-gradient(130deg, ${theme.palette.primary.dark} 0%, ${theme.palette.primary.main} 48%, ${theme.palette.secondary.main} 100%)`,
+          boxShadow: (theme) => `0 26px 50px ${alpha(theme.palette.primary.dark, 0.34)}`,
           position: 'relative',
           overflow: 'hidden',
         }}
@@ -65,21 +70,27 @@ export function HomePage() {
             width: 220,
             height: 220,
             borderRadius: '50%',
-            background: 'radial-gradient(circle, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0) 70%)',
+            background: (theme) =>
+              `radial-gradient(circle, ${alpha(theme.palette.common.white, 0.18)} 0%, ${alpha(theme.palette.common.white, 0)} 70%)`,
           }}
         />
         <Typography variant="h3" sx={{ maxWidth: 650, lineHeight: 1.05, mb: 1.5 }}>
-          Build your dream setup with premium audio and smart tech
+          {t('home.heroTitle')}
         </Typography>
         <Typography sx={{ maxWidth: 600, opacity: 0.92, mb: 3 }}>
-          Explore top-rated gear, discover curated collections, and complete checkout in seconds with our streamlined storefront.
+          {t('home.heroSubtitle')}
         </Typography>
         <Stack direction="row" spacing={1.4} sx={{ mb: 3, flexWrap: 'wrap', gap: 1.2 }}>
           <Button component={RouterLink} to="/products" variant="contained" color="secondary" size="large">
-            Shop now
+            {t('home.shopNow')}
           </Button>
-          <Button component={RouterLink} to="/admin" variant="outlined" sx={{ color: '#fff', borderColor: '#fff' }}>
-            Admin view
+          <Button
+            component={RouterLink}
+            to="/admin"
+            variant="outlined"
+            sx={{ color: 'common.white', borderColor: (theme) => alpha(theme.palette.common.white, 0.9) }}
+          >
+            {t('home.adminView')}
           </Button>
         </Stack>
 
@@ -90,11 +101,13 @@ export function HomePage() {
                 sx={{
                   p: 1.5,
                   borderRadius: 2.5,
-                  backgroundColor: 'rgba(255,255,255,0.14)',
-                  border: '1px solid rgba(255,255,255,0.2)',
+                  backgroundColor: (theme) => alpha(theme.palette.common.white, 0.14),
+                  border: (theme) => `1px solid ${alpha(theme.palette.common.white, 0.2)}`,
                 }}
               >
-                <Typography variant="h5" component="p">{fact.value}</Typography>
+                <Typography variant="h5" component="p">
+                  {fact.value}
+                </Typography>
                 <Typography variant="body2" sx={{ opacity: 0.9 }}>
                   {fact.label}
                 </Typography>
@@ -113,27 +126,27 @@ export function HomePage() {
             to={`/products?category=${category.id}`}
             clickable
             sx={{
-              backgroundColor: '#ffffff',
-              border: '1px solid #d8e4f4',
-              '&:hover': { backgroundColor: '#edf4ff' },
+              backgroundColor: 'background.paper',
+              border: '1px solid',
+              borderColor: 'divider',
+              '&:hover': { backgroundColor: 'action.hover' },
             }}
           />
         ))}
       </Stack>
 
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2.2 }}>
-        <Typography variant="h5" component="h4">Featured products</Typography>
+        <Typography variant="h5" component="h4">
+          {t('home.featured')}
+        </Typography>
         <Button component={RouterLink} to="/products">
-          Browse all
+          {t('home.browseAll')}
         </Button>
       </Stack>
 
       {loading ? <LoadingGrid count={8} /> : null}
       {!loading && !featuredProducts.length ? (
-        <EmptyState
-          title="No featured products yet"
-          description="Run the backend seed script to load a sample catalog."
-        />
+        <EmptyState title={t('home.noFeaturedTitle')} description={t('home.noFeaturedDescription')} />
       ) : null}
 
       {!loading && featuredProducts.length ? (
@@ -145,7 +158,7 @@ export function HomePage() {
                 onAdd={() => {
                   const firstVariantId = product.variants?.[0]?.id;
                   if (!firstVariantId) {
-                    showToast('No variant available for this product', 'error');
+                    showToast(t('common.notAvailable'), 'error');
                     return;
                   }
 
@@ -160,13 +173,28 @@ export function HomePage() {
                           },
                         },
                       }),
-                    { successMessage: 'Added to cart' },
+                    { successMessage: t('success.addedToCart') },
                   );
                 }}
               />
             </Grid>
           ))}
         </Grid>
+      ) : null}
+
+      {recentlyViewed.length ? (
+        <Box sx={{ mt: 5 }}>
+          <Typography variant="h5" sx={{ mb: 2 }}>
+            {t('home.recentlyViewed')}
+          </Typography>
+          <Grid container spacing={2}>
+            {recentlyViewed.slice(0, 4).map((product) => (
+              <Grid key={product.id} item xs={12} sm={6} md={3}>
+                <ProductCard product={product} />
+              </Grid>
+            ))}
+          </Grid>
+        </Box>
       ) : null}
     </Container>
   );

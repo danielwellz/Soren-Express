@@ -36,6 +36,7 @@ type MockState = {
   nextCartItemId: number;
   nextOrderId: number;
   paymentIntentId: string;
+  promoCode: string | null;
   mergeCalls: number;
   operations: string[];
 };
@@ -68,9 +69,9 @@ function jwtToken() {
   return `eyJhbGciOiJIUzI1NiJ9.${payload}.signature`;
 }
 
-function totalsFromCart(cartItems: CartItem[]) {
+function totalsFromCart(cartItems: CartItem[], promoCode?: string | null) {
   const subtotal = cartItems.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
-  const discount = subtotal >= 100 ? 10 : 0;
+  const discount = promoCode ? 10 : 0;
   const shipping = subtotal > 0 ? 8 : 0;
   const tax = subtotal > 0 ? Number(((subtotal - discount + shipping) * 0.07).toFixed(2)) : 0;
   return {
@@ -87,6 +88,8 @@ function currentCart(state: MockState) {
     id: 1,
     sessionId: state.sessionId,
     active: true,
+    promoCode: state.promoCode,
+    giftCardCode: null,
     items: state.cartItems,
   };
 }
@@ -99,6 +102,7 @@ export async function setupGraphqlMocks(page: Page, initialState?: Partial<MockS
     nextCartItemId: 1,
     nextOrderId: 900,
     paymentIntentId: 'pi_900',
+    promoCode: null,
     mergeCalls: 0,
     operations: [],
     ...initialState,
@@ -106,6 +110,7 @@ export async function setupGraphqlMocks(page: Page, initialState?: Partial<MockS
 
   await page.addInitScript((sessionId) => {
     localStorage.setItem('soren_guest_session_id', sessionId);
+    localStorage.setItem('soren_language', 'en');
   }, state.sessionId);
 
   await page.route('**/graphql', async (route) => {
@@ -171,10 +176,49 @@ export async function setupGraphqlMocks(page: Page, initialState?: Partial<MockS
             ],
           },
         });
+      case 'ShippingEstimate':
+        return fulfill({
+          shippingEstimate: {
+            region: variables?.input?.region || 'US-DEFAULT',
+            flatRate: 8,
+            freeShippingOver: 150,
+            remainingForFreeShipping: Math.max(150 - totalsFromCart(state.cartItems).subtotal, 0),
+            eligibleForFreeShipping: totalsFromCart(state.cartItems).subtotal >= 150,
+            estimatedMinDays: 2,
+            estimatedMaxDays: 5,
+          },
+        });
       case 'Reviews':
         return fulfill({ reviews: [] });
       case 'Cart':
         return fulfill({ cart: currentCart(state) });
+      case 'ApplyCartPromo': {
+        const code = String(variables?.input?.couponCode || '').toUpperCase();
+        if (code !== 'SAVE10' && code !== 'WELCOME10') {
+          return route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({ errors: [{ message: 'Invalid coupon' }] }),
+          });
+        }
+        state.promoCode = code;
+        return fulfill({
+          applyCartPromo: {
+            id: 1,
+            promoCode: state.promoCode,
+            items: state.cartItems.map((item) => ({ id: item.id })),
+          },
+        });
+      }
+      case 'RemoveCartPromo':
+        state.promoCode = null;
+        return fulfill({
+          removeCartPromo: {
+            id: 1,
+            promoCode: null,
+            items: state.cartItems.map((item) => ({ id: item.id })),
+          },
+        });
       case 'AddToCart': {
         const variantId = Number(variables?.input?.variantId || sampleProduct.variants[0].id);
         const quantity = Number(variables?.input?.quantity || 1);
@@ -286,12 +330,21 @@ export async function setupGraphqlMocks(page: Page, initialState?: Partial<MockS
               role: 'CUSTOMER',
             },
         });
+      case 'MyWishlist':
+        return fulfill({ myWishlist: [] });
+      case 'AddToWishlist':
+      case 'RemoveFromWishlist':
+        return fulfill({ [operationName === 'AddToWishlist' ? 'addToWishlist' : 'removeFromWishlist']: [] });
+      case 'MyAddresses':
+        return fulfill({ myAddresses: [] });
+      case 'MyCheckoutProfile':
+        return fulfill({ myCheckoutProfile: null });
       case 'MyOrders':
         return fulfill({ myOrders: [] });
       case 'CheckoutPreview':
         return fulfill({
           checkoutPreview: {
-            totals: totalsFromCart(state.cartItems),
+            totals: totalsFromCart(state.cartItems, state.promoCode),
             cart: currentCart(state),
           },
         });
@@ -321,7 +374,7 @@ export async function setupGraphqlMocks(page: Page, initialState?: Partial<MockS
         });
       }
       case 'ConfirmPayment': {
-        const totals = totalsFromCart(state.cartItems);
+        const totals = totalsFromCart(state.cartItems, state.promoCode);
         return fulfill({
           confirmPayment: {
             order: {
@@ -339,6 +392,38 @@ export async function setupGraphqlMocks(page: Page, initialState?: Partial<MockS
       }
       case 'ForgotPassword':
         return fulfill({ forgotPassword: true });
+      case 'SubscribeNewsletter':
+        return fulfill({ subscribeNewsletter: { success: true, message: 'ok' } });
+      case 'SubmitSupportMessage':
+        return fulfill({
+          submitSupportMessage: {
+            id: 1,
+            status: 'OPEN',
+            message: variables?.input?.message || '',
+          },
+        });
+      case 'SubscribeBackInStock':
+        return fulfill({ subscribeBackInStock: { success: true, message: 'ok' } });
+      case 'TrackAnalyticsEvent':
+        return fulfill({
+          trackClientAnalytics: {
+            id: 1,
+            eventType: variables?.input?.eventType || 'unknown',
+            metadata: variables?.input?.metadata || {},
+          },
+        });
+      case 'OrderStatusTimeline':
+        return fulfill({ orderStatusTimeline: [] });
+      case 'CreateReturnRequest':
+        return fulfill({
+          createReturnRequest: {
+            id: 1,
+            reason: variables?.input?.reason || '',
+            exchangePreferred: Boolean(variables?.input?.exchangePreferred),
+            status: 'REQUESTED',
+            createdAt: new Date().toISOString(),
+          },
+        });
       default:
         return route.fulfill({
           status: 200,

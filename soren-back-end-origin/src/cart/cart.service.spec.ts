@@ -12,6 +12,7 @@ describe('CartService merge guest cart', () => {
       {} as any,
       {} as any,
       {} as any,
+      {} as any,
       { trackEvent: jest.fn() } as any,
     );
 

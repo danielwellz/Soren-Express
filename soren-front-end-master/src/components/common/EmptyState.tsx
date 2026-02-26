@@ -20,7 +20,8 @@ export function EmptyState({ title, description, actionLabel, onAction }: EmptyS
         textAlign: 'center',
         p: 4,
         borderRadius: 3,
-        border: '1px dashed #a8b8cd',
+        border: '1px dashed',
+        borderColor: 'divider',
       }}
     >
       <Typography variant="h6">{title}</Typography>

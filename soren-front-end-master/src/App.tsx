@@ -16,6 +16,8 @@ import { OrderDetailsPage } from './pages/OrderDetailsPage';
 import { ProductDetailPage } from './pages/ProductDetailPage';
 import { ProductsPage } from './pages/ProductsPage';
 import { RegisterPage } from './pages/RegisterPage';
+import { WishlistPage } from './pages/WishlistPage';
+import { ComparePage } from './pages/ComparePage';
 
 function App() {
   return (
@@ -26,6 +28,8 @@ function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/products" element={<ProductsPage />} />
           <Route path="/products/:id" element={<ProductDetailPage />} />
+          <Route path="/wishlist" element={<WishlistPage />} />
+          <Route path="/compare" element={<ComparePage />} />
           <Route path="/cart" element={<CartPage />} />
           <Route
             path="/checkout"

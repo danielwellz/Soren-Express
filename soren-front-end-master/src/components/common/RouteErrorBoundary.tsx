@@ -1,6 +1,7 @@
 import { Button, Card, CardContent, Container, Stack, Typography } from '@mui/material';
 import React, { ErrorInfo } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
+import i18n from '../../i18n';
 
 type RouteErrorBoundaryState = {
   hasError: boolean;
@@ -27,16 +28,16 @@ export class RouteErrorBoundary extends React.Component<
           <Card className="surface-glass">
             <CardContent>
               <Stack spacing={1.2}>
-                <Typography variant="h4">Something went wrong</Typography>
+                <Typography variant="h4">{i18n.t('common.somethingWentWrong')}</Typography>
                 <Typography color="text.secondary">
-                  We could not render this page. Please return to a safe route.
+                  {i18n.t('errors.default')}
                 </Typography>
                 <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.2} sx={{ pt: 0.8 }}>
                   <Button component={RouterLink} to="/" variant="contained">
-                    Go home
+                    {i18n.t('common.goHome')}
                   </Button>
                   <Button component={RouterLink} to="/products" variant="outlined">
-                    Browse products
+                    {i18n.t('common.browseProducts')}
                   </Button>
                 </Stack>
               </Stack>

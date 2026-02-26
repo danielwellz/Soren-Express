@@ -1,6 +1,9 @@
 import { ConnectionOptions } from 'typeorm';
-import { resolveRuntimeDbConfig } from './src/config/runtime-env';
+import { assertRequiredRuntimeDbKeys, loadRuntimeEnvFiles, resolveRuntimeDbConfig } from './src/config/runtime-env';
 import { ENTITIES } from './src/entities';
+
+loadRuntimeEnvFiles();
+assertRequiredRuntimeDbKeys();
 
 const db = resolveRuntimeDbConfig();
 

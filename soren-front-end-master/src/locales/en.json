@@ -55,6 +55,9 @@
     "menu": "Menu",
     "comingSoon": "Coming soon",
     "notAvailable": "Not available"
+    ,
+    "defaultVariant": "Default",
+    "oneSize": "One Size"
   },
   "nav": {
     "home": "Home",
@@ -168,6 +171,7 @@
     "sizeGuideDescription": "Use this chart to choose your best fit.",
     "stickyVariant": "Selected",
     "stickyAdd": "Add to cart",
+    "days": "days",
     "deliveryEstimate": "Estimated delivery",
     "trust": {
       "secure": "Secure checkout",
@@ -177,6 +181,7 @@
   },
   "miniCart": {
     "title": "Cart preview",
+    "close": "Close cart preview",
     "emptyTitle": "Your cart is empty",
     "emptyDescription": "Add products to start checkout.",
     "continueShopping": "Continue shopping",
@@ -318,6 +323,10 @@
     "items": "items",
     "savedAddresses": "Saved addresses",
     "addAddress": "Add address",
+    "roles": {
+      "customer": "Customer",
+      "admin": "Admin"
+    },
     "returns": "Returns and exchanges"
   },
   "orderDetails": {
@@ -335,7 +344,22 @@
     "exchangePreferred": "Request exchange",
     "submitReturn": "Submit request",
     "returnSuccess": "Return request submitted",
-    "trackingNumber": "Tracking number"
+    "trackingNumber": "Tracking number",
+    "status": {
+      "pending": "Pending",
+      "paid": "Paid",
+      "fulfilled": "Fulfilled",
+      "cancelled": "Cancelled",
+      "requiresConfirmation": "Requires confirmation",
+      "succeeded": "Succeeded",
+      "failed": "Failed",
+      "shipped": "Shipped",
+      "delivered": "Delivered",
+      "requested": "Requested",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "completed": "Completed"
+    }
   },
   "wishlist": {
     "title": "Wishlist",
@@ -402,7 +426,70 @@
       "moneyBack": "14-day returns",
       "support": "Live support"
     },
-    "paymentMethods": "Accepted payments"
+    "paymentMethods": "Accepted payments",
+    "paymentBadges": {
+      "visa": "Visa",
+      "mastercard": "Mastercard",
+      "paypal": "PayPal",
+      "applePay": "Apple Pay"
+    }
+  },
+  "admin": {
+    "title": "Admin dashboard",
+    "metrics": {
+      "products": "Products",
+      "orders": "Orders",
+      "users": "Users",
+      "coupons": "Coupons"
+    },
+    "createCategory": "Create category",
+    "categoryName": "Category name",
+    "categoryCreated": "Category created",
+    "createBrand": "Create brand",
+    "brandName": "Brand name",
+    "brandCreated": "Brand created",
+    "createCoupon": "Create coupon",
+    "code": "Code",
+    "type": "Type",
+    "percent": "Percent",
+    "fixed": "Fixed",
+    "amount": "Amount",
+    "min": "Minimum",
+    "couponCreated": "Coupon created",
+    "saveCoupon": "Save coupon",
+    "createProduct": "Create product",
+    "name": "Name",
+    "slug": "Slug",
+    "description": "Description",
+    "basePrice": "Base price",
+    "category": "Category",
+    "brand": "Brand",
+    "thumbnail": "Thumbnail URL",
+    "galleryUrls": "Gallery URLs (comma-separated)",
+    "productCreated": "Product created",
+    "saveProduct": "Save product",
+    "createVariant": "Create variant and inventory",
+    "product": "Product",
+    "sku": "SKU",
+    "color": "Color",
+    "size": "Size",
+    "priceAdjustment": "Price adjustment",
+    "inventory": "Inventory",
+    "variantCreated": "Variant created",
+    "saveVariant": "Save variant",
+    "latestAnalytics": "Latest analytics events",
+    "orders": "Orders",
+    "id": "ID",
+    "customer": "Customer",
+    "status": "Status",
+    "total": "Total",
+    "action": "Action",
+    "orderMoved": "Order moved to {{status}}",
+    "advanceStatus": "Advance status",
+    "users": "Users",
+    "role": "Role",
+    "roleUpdated": "Updated to {{role}}",
+    "toggleRole": "Toggle role"
   },
   "errors": {
     "default": "Something went wrong. Please try again.",

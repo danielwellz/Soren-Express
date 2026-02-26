@@ -1,8 +1,11 @@
 import { Box, Button, Card, CardContent, Container, Stack, Typography } from '@mui/material';
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link as RouterLink } from 'react-router-dom';
 
 export function NotFoundPage() {
+  const { t } = useTranslation();
+
   return (
     <Container maxWidth="md" sx={{ py: { xs: 5, md: 8 } }}>
       <Card className="surface-glass">
@@ -19,20 +22,18 @@ export function NotFoundPage() {
                 fontSize: 13,
               }}
             >
-              404
+              {t('notFound.badge')}
             </Box>
             <Typography variant="h3" sx={{ lineHeight: 1.1 }}>
-              Page not found
+              {t('notFound.title')}
             </Typography>
-            <Typography color="text.secondary">
-              The page you requested does not exist or may have moved.
-            </Typography>
+            <Typography color="text.secondary">{t('notFound.description')}</Typography>
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.2} sx={{ pt: 0.6 }}>
               <Button component={RouterLink} to="/" variant="contained">
-                Go home
+                {t('notFound.home')}
               </Button>
               <Button component={RouterLink} to="/products" variant="outlined">
-                Browse products
+                {t('notFound.products')}
               </Button>
             </Stack>
           </Stack>

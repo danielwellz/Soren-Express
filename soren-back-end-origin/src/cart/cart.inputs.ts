@@ -61,3 +61,23 @@ export class MergeGuestCartInput {
   @IsString()
   sessionId: string;
 }
+
+@InputType()
+export class ApplyCartPromoInput {
+  @Field()
+  @IsString()
+  couponCode: string;
+
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsString()
+  sessionId?: string;
+}
+
+@InputType()
+export class RemoveCartPromoInput {
+  @Field({ nullable: true })
+  @IsOptional()
+  @IsString()
+  sessionId?: string;
+}

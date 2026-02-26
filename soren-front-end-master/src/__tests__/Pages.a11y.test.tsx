@@ -10,10 +10,14 @@ import {
   BRANDS_QUERY,
   CART_QUERY,
   CATEGORIES_QUERY,
+  CHECKOUT_PREVIEW_QUERY,
   FEATURED_PRODUCTS_QUERY,
+  MY_ADDRESSES_QUERY,
+  MY_CHECKOUT_PROFILE_QUERY,
   PRODUCT_QUERY,
   PRODUCTS_QUERY,
   REVIEWS_QUERY,
+  SHIPPING_ESTIMATE_QUERY,
 } from '../graphql/documents';
 import { renderWithProviders } from '../test-utils/renderWithProviders';
 
@@ -146,6 +150,25 @@ describe('Core page accessibility', () => {
           request: { query: REVIEWS_QUERY, variables: { filter: { productId: 1 } } },
           result: { data: { reviews: [] } },
         },
+        {
+          request: {
+            query: SHIPPING_ESTIMATE_QUERY,
+            variables: { input: { region: 'US-DEFAULT', subtotal: 129.99 } },
+          },
+          result: {
+            data: {
+              shippingEstimate: {
+                region: 'US-DEFAULT',
+                flatRate: 8,
+                freeShippingOver: 150,
+                remainingForFreeShipping: 20.01,
+                eligibleForFreeShipping: false,
+                estimatedMinDays: 2,
+                estimatedMaxDays: 5,
+              },
+            },
+          },
+        },
       ],
     });
 
@@ -188,6 +211,39 @@ describe('Core page accessibility', () => {
             },
           },
         },
+        {
+          request: {
+            query: CHECKOUT_PREVIEW_QUERY,
+            variables: { input: { region: 'US-DEFAULT', couponCode: undefined, sessionId } },
+          },
+          result: {
+            data: {
+              checkoutPreview: {
+                totals: { subtotal: 129.99, discount: 0, shipping: 8, tax: 9.66, total: 147.65 },
+                cart: { id: 1, items: [] },
+              },
+            },
+          },
+        },
+        {
+          request: {
+            query: SHIPPING_ESTIMATE_QUERY,
+            variables: { input: { region: 'US-DEFAULT', subtotal: 129.99 } },
+          },
+          result: {
+            data: {
+              shippingEstimate: {
+                region: 'US-DEFAULT',
+                flatRate: 8,
+                freeShippingOver: 150,
+                remainingForFreeShipping: 20.01,
+                eligibleForFreeShipping: false,
+                estimatedMinDays: 2,
+                estimatedMaxDays: 5,
+              },
+            },
+          },
+        },
       ],
     });
 
@@ -196,7 +252,18 @@ describe('Core page accessibility', () => {
   });
 
   it('Checkout page has no critical axe violations', async () => {
-    const { container } = renderWithProviders(<CheckoutPage />);
+    const { container } = renderWithProviders(<CheckoutPage />, {
+      mocks: [
+        {
+          request: { query: MY_ADDRESSES_QUERY },
+          result: { data: { myAddresses: [] } },
+        },
+        {
+          request: { query: MY_CHECKOUT_PROFILE_QUERY },
+          result: { data: { myCheckoutProfile: null } },
+        },
+      ],
+    });
     await screen.findByText(/^checkout$/i);
     expect(await axe(container)).toHaveNoViolations();
   });

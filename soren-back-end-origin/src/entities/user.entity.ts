@@ -3,6 +3,7 @@ import {
   CreateDateColumn,
   Entity,
   OneToMany,
+  OneToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
@@ -12,6 +13,12 @@ import { Order } from './order.entity';
 import { Review } from './review.entity';
 import { AnalyticsEvent } from './analytics-event.entity';
 import { UserRole } from 'src/common/enums';
+import { WishlistItem } from './wishlist-item.entity';
+import { BackInStockSubscription } from './back-in-stock-subscription.entity';
+import { ReturnRequest } from './return-request.entity';
+import { SupportMessage } from './support-message.entity';
+import { AddressBookEntry } from './address-book-entry.entity';
+import { CheckoutProfile } from './checkout-profile.entity';
 
 @ObjectType()
 @Entity({ name: 'users' })
@@ -63,6 +70,26 @@ export class User {
 
   @OneToMany(() => AnalyticsEvent, (event) => event.user)
   analyticsEvents?: AnalyticsEvent[];
+
+  @OneToMany(() => WishlistItem, (item) => item.user)
+  wishlistItems?: WishlistItem[];
+
+  @OneToMany(() => BackInStockSubscription, (subscription) => subscription.user)
+  backInStockSubscriptions?: BackInStockSubscription[];
+
+  @OneToMany(() => ReturnRequest, (request) => request.user)
+  returnRequests?: ReturnRequest[];
+
+  @OneToMany(() => SupportMessage, (message) => message.user)
+  supportMessages?: SupportMessage[];
+
+  @Field(() => [AddressBookEntry], { nullable: true })
+  @OneToMany(() => AddressBookEntry, (entry) => entry.user)
+  addressBookEntries?: AddressBookEntry[];
+
+  @Field(() => CheckoutProfile, { nullable: true })
+  @OneToOne(() => CheckoutProfile, (profile) => profile.user)
+  checkoutProfile?: CheckoutProfile;
 
   @Field()
   @CreateDateColumn({ name: 'created_at' })

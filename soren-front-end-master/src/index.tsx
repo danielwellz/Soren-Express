@@ -3,10 +3,13 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import App from './App';
+import { AnalyticsProvider } from './context/AnalyticsContext';
 import { AuthProvider } from './context/AuthContext';
+import { CompareProvider } from './context/CompareContext';
 import { LocaleProvider } from './context/LocaleContext';
 import { ThemeModeProvider } from './context/ThemeModeContext';
 import { ToastProvider } from './context/ToastContext';
+import { WishlistProvider } from './context/WishlistContext';
 import './i18n';
 import { createApolloClient } from './lib/apolloClient';
 import './index.css';
@@ -22,7 +25,13 @@ root.render(
           <ToastProvider>
             <BrowserRouter>
               <AuthProvider>
-                <App />
+                <WishlistProvider>
+                  <CompareProvider>
+                    <AnalyticsProvider>
+                      <App />
+                    </AnalyticsProvider>
+                  </CompareProvider>
+                </WishlistProvider>
               </AuthProvider>
             </BrowserRouter>
           </ToastProvider>

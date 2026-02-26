@@ -7,6 +7,8 @@ import {
   CONFIRM_PAYMENT_MUTATION,
   CREATE_ORDER_MUTATION,
   CREATE_PAYMENT_INTENT_MUTATION,
+  MY_ADDRESSES_QUERY,
+  MY_CHECKOUT_PROFILE_QUERY,
 } from '../graphql/documents';
 import { renderWithProviders } from '../test-utils/renderWithProviders';
 
@@ -20,6 +22,14 @@ describe('CheckoutPage integration', () => {
   it('only confirms payment after payment details are completed', async () => {
     renderWithProviders(<CheckoutPage />, {
       mocks: [
+        {
+          request: { query: MY_ADDRESSES_QUERY },
+          result: { data: { myAddresses: [] } },
+        },
+        {
+          request: { query: MY_CHECKOUT_PROFILE_QUERY },
+          result: { data: { myCheckoutProfile: null } },
+        },
         {
           request: {
             query: CHECKOUT_PREVIEW_QUERY,
@@ -56,6 +66,7 @@ describe('CheckoutPage integration', () => {
                 shippingCity: 'Austin',
                 shippingRegion: 'US-DEFAULT',
                 shippingPostalCode: '78701',
+                saveAddress: false,
                 couponCode: 'SAVE10',
                 sessionId,
               },
@@ -100,6 +111,8 @@ describe('CheckoutPage integration', () => {
               input: {
                 intentId: 'pi_81',
                 cardLast4: '4242',
+                cardholderName: 'Jane Doe',
+                cardExpiry: '12/28',
               },
             },
           },

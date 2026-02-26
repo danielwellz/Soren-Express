@@ -1,5 +1,6 @@
 import {
   AppBar,
+  Autocomplete,
   Badge,
   Box,
   Button,
@@ -11,42 +12,46 @@ import {
   ListItemButton,
   ListItemText,
   Stack,
+  TextField,
   Toolbar,
   Typography,
 } from '@mui/material';
+import { alpha } from '@mui/material/styles';
 import ShoppingCartOutlinedIcon from '@mui/icons-material/ShoppingCartOutlined';
 import MenuIcon from '@mui/icons-material/Menu';
 import DarkModeOutlinedIcon from '@mui/icons-material/DarkModeOutlined';
 import LightModeOutlinedIcon from '@mui/icons-material/LightModeOutlined';
-import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
-import { motion } from 'framer-motion';
-import React, { useState } from 'react';
+import FavoriteBorderRoundedIcon from '@mui/icons-material/FavoriteBorderRounded';
+import CompareArrowsRoundedIcon from '@mui/icons-material/CompareArrowsRounded';
+import LanguageRoundedIcon from '@mui/icons-material/LanguageRounded';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link as RouterLink, NavLink, useNavigate } from 'react-router-dom';
-import { useQuery } from '@apollo/client';
-import { CART_QUERY } from '../../graphql/documents';
-import { getSessionId } from '../../lib/session';
+import { useLazyQuery, useQuery } from '@apollo/client';
+import { useTranslation } from 'react-i18next';
+import { CART_QUERY, PRODUCTS_QUERY } from '../../graphql/documents';
 import { useAuth } from '../../context/AuthContext';
+import { useLocale } from '../../context/LocaleContext';
 import { useThemeMode } from '../../context/ThemeModeContext';
+import { onMiniCartOpen } from '../../lib/cartDrawerEvents';
+import { getSessionId } from '../../lib/session';
+import { MiniCartDrawer } from '../Cart/MiniCartDrawer';
 
-function navItems(isAdmin: boolean) {
-  const base = [
-    { label: 'Home', path: '/' },
-    { label: 'Products', path: '/products' },
-    { label: 'Account', path: '/account' },
-  ];
+type NavItem = {
+  label: string;
+  path: string;
+};
 
-  if (isAdmin) {
-    base.push({ label: 'Admin', path: '/admin' });
-  }
-
-  return base;
-}
+type SearchOption = {
+  id: number;
+  label: string;
+  subtitle?: string;
+};
 
 const navButtonSx = {
   color: 'text.primary',
   fontWeight: 700,
   borderRadius: 999,
-  px: 1.6,
+  px: 1.4,
   minHeight: 38,
   '&.active': {
     color: 'primary.main',
@@ -55,28 +60,88 @@ const navButtonSx = {
 };
 
 export function Header() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { user, isAuthenticated, isAdmin, logout } = useAuth();
   const { mode, toggleMode } = useThemeMode();
+  const { language, direction, setLanguage } = useLocale();
+
   const [mobileOpen, setMobileOpen] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
+  const [searchInput, setSearchInput] = useState('');
+
+  const [fetchSuggestions, { data: suggestionsData }] = useLazyQuery(PRODUCTS_QUERY, {
+    fetchPolicy: 'network-only',
+  });
 
   const { data } = useQuery(CART_QUERY, {
     variables: { context: { sessionId: getSessionId() } },
   });
 
+  useEffect(() => {
+    const cleanup = onMiniCartOpen(() => {
+      setCartOpen(true);
+    });
+
+    return cleanup;
+  }, []);
+
+  useEffect(() => {
+    const normalized = searchInput.trim();
+
+    if (normalized.length < 2) {
+      return;
+    }
+
+    const timeout = window.setTimeout(() => {
+      void fetchSuggestions({
+        variables: {
+          filter: {
+            search: normalized,
+          },
+          pagination: {
+            page: 1,
+            pageSize: 6,
+          },
+          sort: {
+            field: 'name',
+            direction: 'ASC',
+          },
+        },
+      });
+    }, 220);
+
+    return () => {
+      window.clearTimeout(timeout);
+    };
+  }, [fetchSuggestions, searchInput]);
+
+  const links = useMemo<NavItem[]>(() => {
+    const baseItems: NavItem[] = [
+      { label: t('nav.home'), path: '/' },
+      { label: t('nav.products'), path: '/products' },
+      { label: t('nav.wishlist'), path: '/wishlist' },
+      { label: t('nav.compare'), path: '/compare' },
+      { label: t('nav.account'), path: '/account' },
+    ];
+
+    if (isAdmin) {
+      baseItems.push({ label: t('nav.admin'), path: '/admin' });
+    }
+
+    return baseItems;
+  }, [isAdmin, t]);
+
   const itemCount = (data?.cart?.items || []).reduce(
     (sum: number, item: { quantity: number }) => sum + item.quantity,
     0,
   );
-  const cartItems = data?.cart?.items || [];
-  const subtotal = cartItems.reduce(
-    (sum: number, item: { quantity: number; unitPrice: number }) =>
-      sum + Number(item.unitPrice) * item.quantity,
-    0,
-  );
 
-  const links = navItems(isAdmin);
+  const searchOptions: SearchOption[] = (suggestionsData?.products?.items || []).map((product: any) => ({
+    id: Number(product.id),
+    label: product.name,
+    subtitle: product.brand?.name,
+  }));
 
   return (
     <AppBar
@@ -86,13 +151,16 @@ export function Header() {
         py: 0.8,
         borderBottom: '1px solid',
         borderColor: 'divider',
-        backgroundColor: mode === 'dark' ? 'rgba(9, 17, 32, 0.86)' : 'rgba(255, 255, 255, 0.82)',
+        backgroundColor: (theme) =>
+          mode === 'dark'
+            ? alpha(theme.palette.background.default, 0.82)
+            : alpha(theme.palette.background.paper, 0.86),
         color: 'text.primary',
         backdropFilter: 'blur(12px)',
       }}
     >
       <Container maxWidth="xl">
-        <Toolbar disableGutters sx={{ minHeight: { xs: 66, md: 72 }, gap: 1.5 }}>
+        <Toolbar disableGutters sx={{ minHeight: { xs: 66, md: 74 }, gap: 1.2 }}>
           <Stack
             component={RouterLink}
             to="/"
@@ -106,8 +174,9 @@ export function Header() {
                 width: 34,
                 height: 34,
                 borderRadius: '50%',
-                background: 'linear-gradient(135deg, #0b2447, #00a6a6)',
-                boxShadow: '0 8px 18px rgba(11, 36, 71, 0.22)',
+                background: (theme) =>
+                  `linear-gradient(135deg, ${theme.palette.primary.dark}, ${theme.palette.secondary.main})`,
+                boxShadow: (theme) => `0 8px 18px ${alpha(theme.palette.primary.dark, 0.3)}`,
               }}
             />
             <Typography
@@ -118,11 +187,15 @@ export function Header() {
                 display: { xs: 'none', sm: 'block' },
               }}
             >
-              Soren Store
+              {t('header.storeName')}
             </Typography>
           </Stack>
 
-          <Stack direction="row" spacing={0.6} sx={{ ml: 1, display: { xs: 'none', md: 'flex' } }}>
+          <Stack
+            direction="row"
+            spacing={0.5}
+            sx={{ ml: 1, display: { xs: 'none', lg: 'flex' }, flexShrink: 0 }}
+          >
             {links.map((item) => (
               <Button
                 key={item.path}
@@ -136,29 +209,101 @@ export function Header() {
             ))}
           </Stack>
 
-          <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center', gap: 0.8 }}>
-            <IconButton
-              aria-label={mode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-              onClick={toggleMode}
-              sx={{
-                border: '1px solid',
-                borderColor: 'divider',
-                backgroundColor: 'background.paper',
-                '&:hover': { backgroundColor: 'action.hover' },
+          <Box sx={{ display: { xs: 'none', md: 'block' }, flexGrow: 1, px: 1.2, maxWidth: 440 }}>
+            <Autocomplete<SearchOption, false, false, false>
+              size="small"
+              options={searchOptions}
+              noOptionsText={t('header.searchNoResults')}
+              getOptionLabel={(option) => option.label}
+              inputValue={searchInput}
+              onInputChange={(_, value) => setSearchInput(value)}
+              onChange={(_, value) => {
+                if (!value?.id) {
+                  return;
+                }
+
+                navigate(`/products/${value.id}`);
+                setSearchInput('');
               }}
+              renderOption={(props, option) => (
+                <Box component="li" {...props} key={option.id}>
+                  <Stack sx={{ minWidth: 0 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                      {option.label}
+                    </Typography>
+                    {option.subtitle ? (
+                      <Typography variant="caption" color="text.secondary">
+                        {option.subtitle}
+                      </Typography>
+                    ) : null}
+                  </Stack>
+                </Box>
+              )}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label={t('header.searchInputLabel')}
+                  placeholder={t('header.searchPlaceholder')}
+                  aria-label={t('header.searchInputLabel')}
+                />
+              )}
+            />
+          </Box>
+
+          <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center', gap: 0.7 }}>
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<LanguageRoundedIcon fontSize="small" />}
+              aria-label={t('header.languageSwitcher')}
+              onClick={() => {
+                setLanguage(language === 'en' ? 'fa' : 'en');
+              }}
+              sx={{ minWidth: 0, px: 1.1, display: { xs: 'none', sm: 'inline-flex' } }}
+            >
+              {language.toUpperCase()}
+            </Button>
+
+            <IconButton
+              aria-label={mode === 'dark' ? t('common.lightMode') : t('common.darkMode')}
+              onClick={toggleMode}
+              sx={{ border: '1px solid', borderColor: 'divider', bgcolor: 'background.paper' }}
             >
               {mode === 'dark' ? <LightModeOutlinedIcon /> : <DarkModeOutlinedIcon />}
             </IconButton>
 
             <IconButton
-              aria-label="Open cart preview"
-              onClick={() => setCartOpen(true)}
+              aria-label={t('header.viewWishlist')}
+              component={RouterLink}
+              to="/wishlist"
               sx={{
                 border: '1px solid',
                 borderColor: 'divider',
                 backgroundColor: 'background.paper',
-                '&:hover': { backgroundColor: 'action.hover' },
+                display: { xs: 'none', sm: 'inline-flex' },
               }}
+            >
+              <FavoriteBorderRoundedIcon />
+            </IconButton>
+
+            <IconButton
+              aria-label={t('header.viewCompare')}
+              component={RouterLink}
+              to="/compare"
+              sx={{
+                border: '1px solid',
+                borderColor: 'divider',
+                backgroundColor: 'background.paper',
+                display: { xs: 'none', sm: 'inline-flex' },
+              }}
+            >
+              <CompareArrowsRoundedIcon />
+            </IconButton>
+
+            <IconButton
+              aria-label={t('header.openCart')}
+              onClick={() => setCartOpen(true)}
+              sx={{ border: '1px solid', borderColor: 'divider', backgroundColor: 'background.paper' }}
             >
               <Badge badgeContent={itemCount} color="secondary">
                 <ShoppingCartOutlinedIcon />
@@ -167,16 +312,24 @@ export function Header() {
 
             {!isAuthenticated ? (
               <>
-                <Button component={RouterLink} to="/auth/login" variant="text" sx={{ color: 'text.primary', display: { xs: 'none', sm: 'inline-flex' } }}>
-                  Login
+                <Button
+                  component={RouterLink}
+                  to="/auth/login"
+                  variant="text"
+                  sx={{ color: 'text.primary', display: { xs: 'none', sm: 'inline-flex' } }}
+                >
+                  {t('nav.login')}
                 </Button>
                 <Button component={RouterLink} to="/auth/register" variant="contained" color="primary">
-                  Register
+                  {t('nav.register')}
                 </Button>
               </>
             ) : (
               <>
-                <Typography variant="body2" sx={{ display: { xs: 'none', lg: 'block' }, color: 'text.secondary', mr: 0.4 }}>
+                <Typography
+                  variant="body2"
+                  sx={{ display: { xs: 'none', xl: 'block' }, color: 'text.secondary', mr: 0.4 }}
+                >
                   {user?.fullName}
                 </Typography>
                 <Button
@@ -188,14 +341,14 @@ export function Header() {
                     navigate('/');
                   }}
                 >
-                  Sign out
+                  {t('nav.logout')}
                 </Button>
               </>
             )}
 
             <IconButton
               sx={{ display: { md: 'none' }, border: '1px solid', borderColor: 'divider' }}
-              aria-label="menu"
+              aria-label={t('header.openMenu')}
               onClick={() => setMobileOpen(true)}
             >
               <MenuIcon />
@@ -204,123 +357,16 @@ export function Header() {
         </Toolbar>
       </Container>
 
-      <Drawer anchor="right" open={cartOpen} onClose={() => setCartOpen(false)}>
-        <Box sx={{ width: { xs: 320, sm: 390 }, p: 2 }}>
-          <Box
-            component={motion.div}
-            initial={{ opacity: 0, x: 22 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.24, ease: 'easeOut' }}
-          >
-            <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1.2 }}>
-              <Typography variant="h6">Cart preview</Typography>
-              <IconButton
-                aria-label="Close cart preview"
-                onClick={() => setCartOpen(false)}
-                size="small"
-              >
-                <CloseRoundedIcon fontSize="small" />
-              </IconButton>
-            </Stack>
+      <MiniCartDrawer open={cartOpen} onClose={() => setCartOpen(false)} />
 
-            {cartItems.length === 0 ? (
-              <Stack spacing={1.2} sx={{ py: 2.5 }}>
-                <Typography color="text.secondary">Your cart is empty.</Typography>
-                <Button
-                  variant="contained"
-                  onClick={() => {
-                    setCartOpen(false);
-                    navigate('/products');
-                  }}
-                >
-                  Browse products
-                </Button>
-              </Stack>
-            ) : (
-              <>
-                <Stack spacing={1} sx={{ maxHeight: '50vh', overflowY: 'auto', pr: 0.4 }}>
-                  {cartItems.slice(0, 6).map((item: any, index: number) => (
-                    <Box
-                      component={motion.div}
-                      key={item.id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.2, delay: index * 0.03, ease: 'easeOut' }}
-                      sx={{
-                        p: 1.2,
-                        borderRadius: 1.8,
-                        border: '1px solid',
-                        borderColor: 'divider',
-                        bgcolor: 'background.paper',
-                      }}
-                    >
-                      <Stack direction="row" spacing={1.2}>
-                        <Box
-                          component="img"
-                          src={item.variant?.product?.thumbnail || '/images/150x150.png'}
-                          alt={item.variant?.product?.name}
-                          sx={{ width: 56, height: 56, borderRadius: 1, objectFit: 'cover' }}
-                        />
-                        <Box sx={{ minWidth: 0 }}>
-                          <Typography
-                            variant="body2"
-                            sx={{
-                              fontWeight: 700,
-                              lineHeight: 1.3,
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              whiteSpace: 'nowrap',
-                            }}
-                          >
-                            {item.variant?.product?.name}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            Qty {item.quantity} • ${Number(item.unitPrice).toFixed(2)}
-                          </Typography>
-                        </Box>
-                      </Stack>
-                    </Box>
-                  ))}
-                </Stack>
-                <Divider sx={{ my: 1.4 }} />
-                <Stack spacing={1.2}>
-                  <Stack direction="row" justifyContent="space-between">
-                    <Typography color="text.secondary">Subtotal</Typography>
-                    <Typography sx={{ fontWeight: 700 }}>${subtotal.toFixed(2)}</Typography>
-                  </Stack>
-                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-                    <Button
-                      fullWidth
-                      variant="outlined"
-                      onClick={() => {
-                        setCartOpen(false);
-                        navigate('/cart');
-                      }}
-                    >
-                      Go to cart
-                    </Button>
-                    <Button
-                      fullWidth
-                      variant="contained"
-                      onClick={() => {
-                        setCartOpen(false);
-                        navigate('/checkout');
-                      }}
-                    >
-                      Checkout
-                    </Button>
-                  </Stack>
-                </Stack>
-              </>
-            )}
-          </Box>
-        </Box>
-      </Drawer>
-
-      <Drawer anchor="right" open={mobileOpen} onClose={() => setMobileOpen(false)}>
-        <Box sx={{ width: 280, p: 2 }}>
+      <Drawer
+        anchor={direction === 'rtl' ? 'left' : 'right'}
+        open={mobileOpen}
+        onClose={() => setMobileOpen(false)}
+      >
+        <Box sx={{ width: 300, p: 2 }}>
           <Typography variant="h6" sx={{ mb: 1.2 }}>
-            Menu
+            {t('common.menu')}
           </Typography>
           <List>
             {links.map((item) => (
@@ -335,27 +381,44 @@ export function Header() {
             ))}
           </List>
           <Divider sx={{ my: 1.5 }} />
-          {!isAuthenticated ? (
-            <Stack spacing={1}>
-              <Button component={RouterLink} to="/auth/login" onClick={() => setMobileOpen(false)}>
-                Login
-              </Button>
-              <Button component={RouterLink} to="/auth/register" variant="contained" onClick={() => setMobileOpen(false)}>
-                Register
-              </Button>
-            </Stack>
-          ) : (
+          <Stack spacing={1}>
             <Button
               variant="outlined"
+              startIcon={<LanguageRoundedIcon fontSize="small" />}
               onClick={() => {
-                logout();
-                setMobileOpen(false);
-                navigate('/');
+                setLanguage(language === 'en' ? 'fa' : 'en');
               }}
             >
-              Sign out
+              {language.toUpperCase()}
             </Button>
-          )}
+
+            {!isAuthenticated ? (
+              <>
+                <Button component={RouterLink} to="/auth/login" onClick={() => setMobileOpen(false)}>
+                  {t('nav.login')}
+                </Button>
+                <Button
+                  component={RouterLink}
+                  to="/auth/register"
+                  variant="contained"
+                  onClick={() => setMobileOpen(false)}
+                >
+                  {t('nav.register')}
+                </Button>
+              </>
+            ) : (
+              <Button
+                variant="outlined"
+                onClick={() => {
+                  logout();
+                  setMobileOpen(false);
+                  navigate('/');
+                }}
+              >
+                {t('nav.logout')}
+              </Button>
+            )}
+          </Stack>
         </Box>
       </Drawer>
     </AppBar>
