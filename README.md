@@ -214,3 +214,4 @@ For production, switch `DB_SYNCHRONIZE=false` and add formal migrations.
 - Payments: fake provider only, no real transactions
 - Emails: local logger + `notification_logs` table
 - SMS: mock by default; optional provider toggle via `SMS_PROVIDER_ENABLED=true`
+# Soren-Express
